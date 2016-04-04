@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>Search Portal - Article</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+
+<body>
+	<div id="header">																																																																														
+		<a href="index.html" class="logo"><img src="{{ url_for('static', filename='images/title.gif') }}" alt="setalpm" width="203" height="50" /></a>																																					                                                                                                               <div class="inner_copy"><a href="http://tech.co/10-best-website-builder-platforms-for-beginners-2015-02/">http://tech.co/10-best-website-builder-platforms-for-beginners-2015-02</a></div>
+		<ul id="menu">
+			<li><a href="index.html" class="but1">Home page</a></li>
+			<li><a href="index2.html" class="but2_active">Articles</a></li>
+			<li><a href="index2.html" class="but3">Latest Websites</a></li>
+			<li><a href="index2.html" class="but4">Submit</a></li>
+			<li><a href="index2.html" class="but5">Contacts</a></li>
+		</ul>
+	  	<div id="search">
+			<span>Search the web:</span> <input type="text" /> <a href="#"><img src="{{ url_for('static', filename='images/search.jpg') }}" alt="" width="57" height="26" /></a><br />
+		</div>
+		<div id="links">
+			<a href="#">Advanced Search</a><a href="#">Help</a><a href="#">More Search Tools</a>
+		</div>
+	</div>
+	<div id="wrapper">																																																																																																				
+		<div class="articles">
+			<img src="{{ url_for('static', filename='images/title6.gif') }}" alt="" width="268" height="45" /><br />
+			<ul>
+				<li>Illum secundum exerci erat plaga illum, enim, venio. Tamen causa ut diam torqueo sagaciter inhibeo si quae exerci lobortis. <a href="#">read more</a></li>
+				<li>Tamen causa ut diam torqueo sagaciter inhibeo si quae exerci lobortis. <a href="#">read more</a></li>
+				<li>Appellatio vel hos autem, ludus luptatum mauris ratis jugis interdico.  <a href="#">read more</a></li>
+				<li>Tamen causa ut diam torqueo sagaciter inhibeo si quae exerci lobortis. <a href="#">read more</a></li>
+				<li>Illum secundum exerci erat plaga illum, enim, venio. Tamen causa ut diam torqueo sagaciter inhibeo si quae exerci lobortis. <a href="#">read more</a></li>
+				<li>Appellatio vel hos autem, ludus luptatum mauris ratis jugis interdico.  <a href="#">read more</a></li>
+				<li>Tamen causa ut diam torqueo sagaciter inhibeo si quae exerci lobortis. <a href="#">read more</a></li>
+			</ul>
+			<img src="{{ url_for('static', filename='images/article_bot.gif') }}" alt="" width="268" height="7" /><br />																																																																																																																																																																																																																																																																																																					
+	  	</div>
+		<div class="article">
+			<h3>Results</h3>
+			<div> 
+				{% for res in entries %}
+				<li> <a href="{{ res.link }}">{{ res.link }}({{ res.rank }})</a></li>
+				{% endfor %}
+			</div>
+		</div>
+	</div>
+	<div id="footer">
+		<ul>
+			<li><a href="index.html">Home page</a>|</li>
+			<li><a href="index2.html">Articles</a>|</li>
+			<li><a href="index2.html">Latest Websites</a>|</li>
+			<li><a href="index2.html">Submit</a>|</li>
+			<li><a href="index2.html">Contacts</a></li>
+		</ul>
+		<p>Copyright &copy;. All rights reserved. Design by <a href="http://www.bestfreetemplates.info" target="_blank" title="Best Free Templates">BFT</a></p>																																																											
+	</div>
+</body>
+</html>

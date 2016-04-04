@@ -1,0 +1,185 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>Search Portal - Article</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+<script src="{{ url_for('static', filename='jquery.js') }}"></script>
+</head>
+
+<body>
+
+	<div id="header">																																																																														
+		<div style="text-align: center; padding: 20px 0px;" id="logo-wrapper">
+  <a style="text-align: center;" href=" / " class="logo"><img style="" src="{{ url_for('static', filename='images/hooli.jpg') }}" alt="setalpm" height="100"></a>
+</div>																																					                             
+                                                                        
+          <div class="inner_copy"><a href="http://tech.co/10-best-website-builder-platforms-for-beginners-2015-02/">http://tech.co/10-best-website-builder-platforms-for-beginners-2015-02</a></div>
+		
+	 <div style="text-align: center; width: 100%; border-width: medium; border-style: none solid solid; border-color: -moz-use-text-color grey grey; -moz-border-top-colors: none; -moz-border-right-colors: none; -moz-border-bottom-colors: none; -moz-border-left-colors: none; border-image: none; border-radius: 2px;" id="search-wrapper">
+	
+	<div style="border-bottom: medium solid gray; background-color: gray;" id="nav-tabs"><span style="margin: 0px 10px;">News</span><span style="margin: 0px 10px; border-radius: 2px 2px 0px 0px; border-width: medium; border-style: solid; border-color: gray gray white;">Results</span><span style="margin: 0px 10px;">About</span></div>
+	  	<div style="padding-top: 20px;" id="search">
+			<span>Search the web:</span> <input id="search-box" value="{{ md.search_query }}" type="text"> <a href="#"><img id="search-button" src="{{ url_for('static', filename='images/search.jpg') }}" alt="" height="26" width="57"></a><br>
+		</div>
+		<div style="padding: 10px 0px 0px;" id="show-adv-options">
+			<a href="#">Advanced Search Options</a>
+		</div>
+<div style="padding: 0px; display: none;" id="adv-options">
+			<form action=""> 
+			Search the following types: <input name="res-type" value="{{ md.type_id }}" id="res-type" type="text"> <input value="Set" name="set-res-type" id="set-res-type" type="button"><br>
+			Connect as AND: <input name="and-conn" value="{{ md.and_q}}" id="and-conn" type="text"> <br>
+			Phrase Query: <input name="ph-conn" value="{{ md.ph_q}}" id="ph-conn" type="text"> <br>
+			NOT the following: <input name="not-conn" value="{{ md.not_q}}" id="not-conn" type="text"> <input value="Set" name="set-conn" id="set-conn" type="button"><br>
+  
+  No. of results per page : <input name="num-res" id="num-res" type="text"> <input value="Set" name="set-num-res" id="set-num-res" type="button">
+</form>
+	<a href="#" id="hide-adv-options"> Hide </a>
+		</div>
+	</div>
+</div>
+	<div id="wrapper">																																																																																																				
+		<div class="articles">
+	<div style="text-align: center; border: 0.5px solid gray; border-radius: 2px;"><h2 style="padding: 10px 0px;">Meta-Data</h2></div>
+			<img style="display: none;" src="{{ url_for('static', filename='images/title6.gif') }}" alt="" height="45" width="268"><br>
+			<ul>
+			{% if md.dym != None %}
+				<li><h2>Did you mean</h2><h3><p><a id="dym" data-link="{{ md.dym }}">{{ md.dym }} </a></p></h3></li>
+			{% endif %}
+	<li><h3>The search took...</h3><p>{{ md.time }} seconds</p></li>
+	<li><h3>And Produced...</h3><p>{{ md.num_res }} results</p></li>
+	<li><h3>In...</h3><p>{{ md.pgs }} pages</p></li>
+	<li><h3>Result by Types:</h3>
+		<p><b>HTML : </b> {{ file_res.html }}</p>
+		<p><b>PDF : </b> {{ file_res.pdf }}</p>
+		<p><b>DOCS : </b> {{ file_res.doc }}</p>
+		<p><b>IMAGES : </b> {{ file_res.pic }}</p>
+		<p><b>OTHER : </b> {{ file_res.other }}</p>
+	</li>
+				
+			</ul>
+			<img src="{{ url_for('static', filename='images/article_bot.gif') }}" alt="" height="7" width="268"><br>
+																																																																								
+																																																																								
+																																																																								
+																																																																								
+					
+	  	</div>
+		<div class="article">
+			<h3>Results</h3>
+			<div style="margin: 20px 0px;"> 
+				<div><p> 
+				{% if md.num_res != 0 %}
+				Showing {{ md.start }} to {{ md.stop }} results out of {{ md.num_res }} 
+				{% else %}
+				No results to display
+				{% endif %}
+
+				</p></div>
+				{% for res in entries %}
+				<li style="display: block; margin: 10px 0px;"> <a href="{{ res.link }}"><h2>{{ res.res_title }}</h2></a>
+<p style="padding: 3px 0px 0px;">{{ res.link }}</p>
+<p style="padding: 5px 0px; margin: 0px 0px 5px;">{{ res.desc|safe }}</p></li>
+				{% endfor %}
+
+	<div style="text-align: center;" id="pages-links"><span style="float: left;"> <h2> <a id="prev-pg" class="page-nav" data-page="{{ md.prev_pg }}">--Prev</a> </h2></span><h2 style="display: inline-block;"> <ul style="display: inline-block;">
+	{% if md.nav[0] != 1 %}
+		...
+	{% endif %}
+	{% for pg in range(md.nav[0], md.nav[1] + 1) %}
+<li style="display: inline; margin: 0px 2px;"><a class="page-nav" data-page="{{ pg }}">{{ pg }}</a></li>
+	{% endfor %}
+	{% if md.nav[1] != md.pgs %}
+		...
+	{% endif %}
+
+</ul></h2> <span style="float: right;"> <h2> <a id="next-pg" class="page-nav" data-page="{{ md.next_pg }}">Next++</a> </h2></span></div>
+
+</div>
+		</div>
+	</div>
+	<div id="footer">
+		<ul>
+			<li><a href="http://intranet.iitg.ernet.in./">Intranet</a>|</li>
+			<li><a href="http://shilloi.iitg.ernet.in/~acad/intranet/index.php">Academics</a>|</li>
+			<li><a href="https://intranet.iitg.ernet.in/moodle/login/index.php">Moodle</a>|</li>
+			<li><a href="http://intranet.iitg.ernet.in./repo">Software Repository</a>|</li>
+			<li><a href="http://local.iitg.ernet.in/aboutus">About IITG</a></li>
+		</ul>
+																																																													
+	<script type="text/javascript">
+		
+		var num_res = {{ md.pg_size }};
+		var and_conn = $('#and-conn').val();
+		var ph_conn = $('#ph-conn').val();
+		var not_conn = $('#not-conn').val();		
+		var type_id = $('#res-type').val()	;
+		var nav_page = 1;
+		var search_query = $('#search-box').val();
+
+		function requestBuilder(){
+			
+			var encoded = encodeURIComponent(search_query);
+			var requ = 'q=' + encoded + '&&nr=' + num_res + '&&tid=' + type_id + '&&p=' + nav_page + '&&cand=' + and_conn + '&&cph=' + ph_conn + '&&cnot=' + not_conn;
+			return requ;
+		}
+
+		function toSearch() {
+
+			nav_page = 1;
+			search_query = $('#search-box').val();
+			requ = requestBuilder();	
+			document.location = '/search?' + requ;
+		}
+
+		$('.page-nav').click(function() {
+			nav_page = $(this).attr('data-page');
+			requ = requestBuilder();
+			document.location = '/search?' + requ;
+		});
+
+		$('#dym').click(function(){
+			nav_page = 1;
+			search_query = $(this).attr('data-link');
+			requ = requestBuilder();	
+			document.location = '/search?' + requ;
+		})
+
+		$('#set-conn').click(function() {
+			and_conn = encodeURIComponent($('#and-conn').val());
+			ph_conn = encodeURIComponent($('#ph-conn').val());
+			not_conn = encodeURIComponent($('#not-conn').val());
+		});
+
+
+		$('#set-res-type').click(function() {
+			type_id = $('#res-type').val();
+			alert('File type set to:' +  type_id);
+		});
+
+		$('#set-num-res').click(function() {
+			num_res = $('#num-res').val();
+			alert('No of results per page set to:' +  num_res);
+		});
+
+		$('#show-adv-options').click(function() {
+			$('#adv-options').show();
+		});
+
+		$('#hide-adv-options').click(function() {
+			$('#adv-options').hide();
+		});
+
+
+		$('#search-button').click(toSearch);
+
+		$("#search-box").keydown(function(event){ 
+        	if (event.which == 13)
+        	{
+        		toSearch();	
+        	}
+    	});
+
+
+	</script>
+
+</body></html>

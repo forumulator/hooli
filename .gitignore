@@ -1,0 +1,35 @@
+*.py[cod]
+
+# C extensions
+*.so
+
+# Packages
+*.egg
+*.egg-info
+/dist
+/build
+eggs
+parts
+bin
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64
+.backups
+
+
+#Cached Documents
+/HTML/*
+/PDF/*
+
+
+*.pkl
+
+
+# indexes
+graph.txt
+links.txt
+"All files.txt"
+"All pdf.txt"

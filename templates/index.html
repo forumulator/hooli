@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+</head>
+<body>
+<ul>
+	{% for res in entries %}
+		<li> <a href="{{ res.link }}">{{ res.link }}({{ res.rank }})</a></li>
+	{% endfor %}	
+</ul>
+</body>
+</html>
