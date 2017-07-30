@@ -33,3 +33,6 @@ graph.txt
 links.txt
 "All files.txt"
 "All pdf.txt"
+
+# stray HTML files
+*.html
