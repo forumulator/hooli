@@ -1,7 +1,6 @@
 from html.parser import HTMLParser
 from urllib import parse
 
-
 class UrlFinder(HTMLParser):
 
     def __init__(self, pageURL):
