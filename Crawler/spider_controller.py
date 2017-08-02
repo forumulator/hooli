@@ -4,6 +4,8 @@ import threading
 
 from collections import deque
 
+import hbase_util
+
 from crawler import executeCrawler
 
 POST_TO_DB_TIME_INTERVAL = 20
@@ -17,7 +19,7 @@ class spider_controller:
 
     self.__threadsMaxNumber = threadsMaxNumber
     self.__pagesMaxNumber = pagesMaxNumber
-    
+    self.__tot_crawl_count = 0
     # Stores URLs that still need to be crawled
     # pops from left, and appends from right
     self.__urlToCrawlDeque = deque()
@@ -68,12 +70,14 @@ class spider_controller:
       while (len(self.__urlToCrawlDeque) != 0 and
              len(self.__threadDict) < self.__threadsMaxNumber):
         url = self.__urlToCrawlDeque.popleft()
-
-        #---------------------------------------
-        # check if hash of url is in the database
-        # cache the url if it is in the database
-        #----------------------------------------
-
+        url_hash = hashlib.sha256(bytes(url, "utf-8")).hexdigest()
+        if url in self.__alreadyCrawledSet:
+          continue
+        # check if the url is already crawled, i.e, present in database.
+        # Then cache in the already CrawledSet
+        if hbase_util.check_web_doc(url_hash):
+          self.__alreadyCrawledSet.add(url_hash)
+          continue
         #else part
         print("creating thread for %s"% url)
         for t_id in range(1,self.__threadsMaxNumber + 1):
@@ -83,17 +87,20 @@ class spider_controller:
         time.sleep(1)
 
       print("Iteration Done. Sleeping for 2 seconds.")
-      print("%d pages crawled"%self.__numberOfURLsCrawled)
+      print("%d pages crawled"%self.__tot_crawl_count)
       print("%d seconds passed"%(time.time() - self.__startTime))
       time.sleep(2)
 
   def __postToDBIfValid(self):
 
     if time.time() - self.__lastPostTimeToDB > POST_TO_DB_TIME_INTERVAL:
-      #---------------------------------------------------
       # post the count of the newly crawled urls and check
       # if the global limit has exceeded
-      #---------------------------------------------------
+      if (hbase_util.update_crawl_count(self.__numberOfURLsCrawled) >
+        self.__pagesMaxNumber):
+        print("Pages limit reached. Stopping spider.")
+        exit(0)
+      self.__numberOfURLsCrawled = 0
       self.__lastPostTimeToDB = time.time()
 
   def __getDataFromFinishedThreads(self):
@@ -126,13 +133,13 @@ class spider_controller:
   def __processCrawledURL(self, threadID):
 
     self.__numberOfURLsCrawled += 1
-    self.__alreadyCrawledSet.add(self.__beingCrawledDict[threadID])
-    
-    #-------------------------------------------------------
-    # Add url from threadReturnDataDict[threadID]['setOfURLs'] and
-    # htmlString from threadReturnDataDict[threadID]['htmlString'] 
-    # to database.
-    #-------------------------------------------------------
+    self.__tot_crawl_count += 1
+    url = self.__beingCrawledDict[threadID]
+    url_hash = hashlib.sha256(bytes(url, "utf-8")).hexdigest()
+    self.__alreadyCrawledSet.add(url_hash)
+    # Adding the web page details to the database.
+    hbase_util.post_web_doc(url_hash, url, 
+      self.threadReturnDataDict[threadID][HTMLString_KEY])
 
 
   def __processSetOfURLsReturned(self, threadID):
@@ -141,10 +148,6 @@ class spider_controller:
     for url in self.threadReturnDataDict[threadID][SetOfURLs_KEY]:
 
       urlHash = hashlib.sha256(bytes(url, "utf-8")).hexdigest()
-
-      #-------------------------------------
-      # check in DB if hash of URL is present
-      #-------------------------------------
 
       if (urlHash not in self.__alreadyCrawledSet):
         self.__urlToCrawlDeque.append(url)

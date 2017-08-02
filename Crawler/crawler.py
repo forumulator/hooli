@@ -33,19 +33,21 @@ class Crawler:
         urlResponse = self.__openURL(proxyDict)
 
         if urlResponse is not None:
-
+            import hashlib
+            
             responseCharset = urlResponse.headers.get_content_charset()
             if(responseCharset is not None):
                 htmlString = self.__decodeResponse(urlResponse, responseCharset)
             else:
                 htmlString = self.__decodeResponse(urlResponse)
 
-            filename = (FILE_STORAGE_BASE_PATH
-                        + self.__urlBeingCrawled.split('/')[-1]
-                        + ".html")
-            self.__storeWebPageToFile(htmlString,
-                                      filename,
-                                      FILE_STORAGE_ENCODING)
+            # url_hash = hashlib.sha256(bytes(self.__urlBeingCrawled, "utf-8")).hexdigest()
+            # filename = (FILE_STORAGE_BASE_PATH
+            #             + url_hash
+            #             + ".html")
+            # self.__storeWebPageToFile(htmlString,
+            #                           filename,
+            #                           FILE_STORAGE_ENCODING)
 
             outgoingURLSet = self.__findOutgoingURLs(self.__urlBeingCrawled,
                                                      htmlString)
