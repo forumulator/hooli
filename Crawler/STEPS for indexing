@@ -1,0 +1,5 @@
+STEPS for indexing:
+1. call get_docs_indexing in hbase_util
+2. Returns a dict of docs and their html
+3. COnvert it into  dict of form - doc_name(same as above step) : {term: [list of pos]}
+4. call update inv_index for each doc_name separately

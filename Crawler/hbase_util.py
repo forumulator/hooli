@@ -14,9 +14,9 @@ logging.basicConfig(format='%(asctime)s %(message)s',
   filename='py_hbase.log',level=logging.DEBUG)
 
 thrift_port = 9001
-
+thrift_host == "172.16.114.80"
 def get_hbase_connection():
-  return happybase.Connection(port=thrift_port)
+  return happybase.Connection(host=thrift_host ,port=thrift_port)
 
 def create_crawl_count_table():
   '''
@@ -68,6 +68,19 @@ def create_crawl_count_table():
           'docs': dict(),
         })
       logging.info("Inverted Index Table created")
+
+    if not b'index_stats' in con.tables():
+      con.create_table('index_stats',
+        {
+          'stats': dict(),
+        })
+      logging.info("Index Stats Table created")
+
+    table = con.table('index_stats')
+    row = table.row(b'index')
+    if not row:
+      table.counter_inc(b'index', b'stats:counter')
+      logging.info("Index Stats counter created")
 
   except Exception as e:
     # Print stack trace
@@ -158,6 +171,7 @@ def update_inv_index(url_hash, doc_index):
   con = get_hbase_connection()
   table = con.table('inv_index')
   bat = table.batch()
+  # TODO - try changing to with
   col_name = "docs:%s" %url_hash
   for term in doc_index:
     content = ""
@@ -177,9 +191,28 @@ def update_inv_index(url_hash, doc_index):
     log.debug("Doc with url: %s suffered: %s" %(url_hash, e))
 
 
+def get_docs_indexing(num_docs):
+  # TODO - Store the IPs vs ranges of docs indexed by them
+  con = get_hbase_connection()
+  table = con.table('index_stats')
+  last_id = table.counter_inc(b'index', b'stats:counter', value=num_docs)
+
+  doc_list = []
+  con = get_hbase_connection()
+  tab1 = con.table('enumerate_docs')
+  tab2 = con.table('web_docs')
+  for doc_id in range(last_id-num_docs+1, last_id+1):
+    url_hash = tab2.row(bytes(str(doc_id), "utf-8")).get(b'cf1:urlhash')
+    if url_hash is None:
+      break
+    html_string = tab1.row(url_hash)[b'details:html']
+    doc_list.append(html_string.decode("utf-8"))
+
+  return doc_list
+
 def get_occuring_docs(term):
   """
-  Returns a dict of docs
+  Returns a dict of docs where the term occurs
   """
   con = get_hbase_connection()
   table = con.table('inv_index')
