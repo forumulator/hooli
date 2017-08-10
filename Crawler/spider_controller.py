@@ -112,7 +112,9 @@ class spider_controller:
 
         # Check if any data has been added to the dict by the thread.
         if self.threadReturnDataDict.get(threadID) is not None:
-          
+          #----------------------------------
+          # Strip CSS and JS from html_string
+          #----------------------------------
           self.__processCrawledURL(threadID)
           self.__processSetOfURLsReturned(threadID)
 
@@ -130,6 +132,24 @@ class spider_controller:
         # Delete thread from dict of threads
         del(self.__threadDict[threadID])
 
+  def __get_html_text(self, html):
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html)
+        
+    for tag in ['script','style']:
+        for s in soup.find_all(tag):
+            s.replaceWith(" ")
+    try:
+        ht = str(soup.prettify())
+# this is to prevent words from glueing together after tags are removed
+        soup2 = BeautifulSoup(ht)
+        return str(soup2.get_text())
+# content extracted
+
+    except:
+# the prettify() fn goes into infinte recursion when <TABLE> is present        
+        return str(soup.get_text())
+
   def __processCrawledURL(self, threadID):
 
     self.__numberOfURLsCrawled += 1
@@ -138,8 +158,9 @@ class spider_controller:
     url_hash = hashlib.sha256(bytes(url, "utf-8")).hexdigest()
     self.__alreadyCrawledSet.add(url_hash)
     # Adding the web page details to the database.
-    hbase_util.post_web_doc(url_hash, url, 
-      self.threadReturnDataDict[threadID][HTMLString_KEY])
+    html_text = self.__get_html_text(self.threadReturnDataDict[threadID][HTMLString_KEY])
+    #print(html_text)
+    hbase_util.post_web_doc(url_hash, url, html_text)
 
 
   def __processSetOfURLsReturned(self, threadID):
