@@ -14,13 +14,15 @@ logging.basicConfig(format='%(asctime)s %(message)s',
   filename='py_hbase.log',level=logging.DEBUG)
 
 thrift_port = 9001
-thrift_host == "172.16.114.80"
+thrift_host = "172.16.114.80"
+
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
 
 def create_crawl_count_table():
   '''
-  Creates all the Hbase tables and initializes them.
+  Creates all the Hbase tables necessary for crawling,
+  storing the web_docs and indexing and initializes them.
   '''
   con = get_hbase_connection()
   
@@ -37,7 +39,7 @@ def create_crawl_count_table():
     table = con.table('crawl_statistics')
     row = table.row(b'crawl')
     if not row:
-      table.counter_inc(b'crawl', b'stats:count')
+      table.counter_set(b'crawl', b'stats:count', 0)
       logging.info("Row crawl created in the table")
 
     # Stores the web pages crawled and their details
@@ -59,9 +61,10 @@ def create_crawl_count_table():
     table = con.table('enumerate_docs')
     row = table.row(b'gen_next_id')
     if not row:
-      table.counter_inc(b'gen_next_id', b'cf1:counter')
+      table.counter_set(b'gen_next_id', b'cf1:counter', 0)
       logging.info("Enumerate Docs counter created")
 
+    # Stores the inverted index
     if not b'inv_index' in con.tables():
       con.create_table('inv_index',
         {
@@ -69,6 +72,7 @@ def create_crawl_count_table():
         })
       logging.info("Inverted Index Table created")
 
+    # Stores the index stats - how many files have been indexed
     if not b'index_stats' in con.tables():
       con.create_table('index_stats',
         {
@@ -79,7 +83,7 @@ def create_crawl_count_table():
     table = con.table('index_stats')
     row = table.row(b'index')
     if not row:
-      table.counter_inc(b'index', b'stats:counter')
+      table.counter_set(b'index', b'stats:counter', 0)
       logging.info("Index Stats counter created")
 
   except Exception as e:
@@ -157,9 +161,15 @@ def check_web_doc(url_hash):
 
 
 def update_inv_index(url_hash, doc_index):
+  """
+  Given doc identified by its url_hash and a dict - doc_index
+  which contains terms of the doc as keys and the list of the term's
+  positions in the doc as values, updates the inv_index and the web_doc table.
+  """
   # If we are not really using the font/formatting of words might as well
   # store just words and their pos in the html_string of web_docs table
-  # decreasing its size.
+  # further decreasing its size.
+  t1 = time.time()
   term_count = len(doc_index)
   con = get_hbase_connection()
   table = con.table('web_doc')
@@ -186,28 +196,43 @@ def update_inv_index(url_hash, doc_index):
 
   try:
     bat.send()
-  except Excpetion as e:
+  except Exception as e:
     # It's possible that the connection timed out
-    log.debug("Doc with url: %s suffered: %s" %(url_hash, e))
+    logging.debug("Doc with url: %s suffered: %s" %(url_hash, e))
 
+  logging.info("Updated inv_index for doc: %s in %f time" %(url_hash,
+    (time.time() - t1)))
 
-def get_docs_indexing(num_docs):
+def retrieve_docs_html(num_docs):
+  """
+  Given the number of docs to be retrieved, returns a dict
+  with the doc identifier - which is its url_hash as key and the
+  html text of the doc as the value.
+  """
   # TODO - Store the IPs vs ranges of docs indexed by them
+  import socket
+  t1 = time.time()
   con = get_hbase_connection()
   table = con.table('index_stats')
   last_id = table.counter_inc(b'index', b'stats:counter', value=num_docs)
+  table.put(bytes(str("%d-%d" %(last_id-num_docs+1, last_id)), "utf-8"),
+    {
+      b'stats:ip' : bytes(socket.gethostname(), "utf-8")
+    })
 
-  doc_list = []
+  doc_list = {}
   con = get_hbase_connection()
   tab1 = con.table('enumerate_docs')
-  tab2 = con.table('web_docs')
+  tab2 = con.table('web_doc')
   for doc_id in range(last_id-num_docs+1, last_id+1):
-    url_hash = tab2.row(bytes(str(doc_id), "utf-8")).get(b'cf1:urlhash')
+    url_hash = tab1.row(bytes(str(doc_id), "utf-8")).get(b'cf1:urlhash')
     if url_hash is None:
       break
-    html_string = tab1.row(url_hash)[b'details:html']
-    doc_list.append(html_string.decode("utf-8"))
+    html_string = tab2.row(url_hash)[b'details:html']
+    doc_list[url_hash.decode("utf-8")] = html_string.decode("utf-8")
 
+  logging.info("Retrieved docs %d-%d in %f sec" %(last_id-num_docs+1, doc_id,
+    time.time()-t1))
   return doc_list
 
 def get_occuring_docs(term):
