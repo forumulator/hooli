@@ -10,8 +10,7 @@ import sys
 import time
 import traceback
 
-logging.basicConfig(format='%(asctime)s %(message)s', 
-  filename='py_hbase.log',level=logging.DEBUG)
+import logger
 
 thrift_port = 9001
 thrift_host = "172.16.114.80"
@@ -81,15 +80,13 @@ def create_crawl_count_table():
       logging.info("Index Stats Table created")
 
     table = con.table('index_stats')
-    row = table.row(b'index')
-    if not row:
-      table.counter_set(b'index', b'stats:counter', 0)
-      logging.info("Index Stats counter created")
+    table.counter_set(b'index', b'stats:counter', 1)
+    logging.info("Index Stats counter created")
 
   except Exception as e:
     # Print stack trace
-    logging.debug("Problem %s" %e)
-    traceback.print_exc(file=sys.stdout)
+    tb = traceback.format_exc()
+    logging.error("Problem %s:\n%s" %(e, tb))
     return False
 
   return True
@@ -152,8 +149,8 @@ def check_web_doc(url_hash):
 
     except Exception as e:
       # Expecting error if row doesn;t have the given field
-      logging.debug("Problem %s" %e)
-      traceback.print_exc(file=sys.stdout)
+      tb = traceback.format_exc()
+      logging.error("Problem %s:\n%s" %(e, tb))
       return False
 
   logging.info("Given urlhash is already present in the database.")
@@ -173,6 +170,7 @@ def update_inv_index(url_hash, doc_index):
   term_count = len(doc_index)
   con = get_hbase_connection()
   table = con.table('web_doc')
+  # What is the point of this?
   table.put(bytes(url_hash, "utf-8"),
     {
       b'details:term_count' : bytes(str(term_count), "utf-8")
@@ -192,13 +190,14 @@ def update_inv_index(url_hash, doc_index):
       {
       bytes(col_name, "utf-8") : bytes(content, "utf-8")
       })
-    bat.counter_inc(bytes(term, "utf-8"), b'docs:counter')
+    # I can do this in another pass
+    #table.counter_inc(bytes(term, "utf-8"), b'docs:counter')
 
   try:
     bat.send()
   except Exception as e:
     # It's possible that the connection timed out
-    logging.debug("Doc with url: %s suffered: %s" %(url_hash, e))
+    logging.error("Doc with url: %s suffered: %s" %(url_hash, e))
 
   logging.info("Updated inv_index for doc: %s in %f time" %(url_hash,
     (time.time() - t1)))
@@ -231,7 +230,7 @@ def retrieve_docs_html(num_docs):
     html_string = tab2.row(url_hash)[b'details:html']
     doc_list[url_hash.decode("utf-8")] = html_string.decode("utf-8")
 
-  logging.info("Retrieved docs %d-%d in %f sec" %(last_id-num_docs+1, doc_id,
+  logging.info("Retrieved docs %d-%d in %f sec" %(last_id-num_docs, doc_id-1,
     time.time()-t1))
   return doc_list
 
@@ -249,5 +248,21 @@ def get_occuring_docs(term):
 
   return docs_dict
 
+def remove_table(table_list):
+  """
+  Disables and deletes the tables given in the list from Hbase.
+  """
+  con = get_hbase_connection()
+  for table in table_list:
+    try:
+      con.delete_table(table, True)
+    except Exception as e:
+      tb = traceback.format_exc()
+      logging.error("Problem %s:\n%s" %(e, tb))
+    else:
+      print("Deleted: %s" %table)
+      logging.info("Deleted Table: %s" %table)
 
-create_crawl_count_table()
+if __name__ == "__main__":
+  logger.initialize()
+  create_crawl_count_table()

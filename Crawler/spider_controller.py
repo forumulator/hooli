@@ -133,22 +133,29 @@ class spider_controller:
         del(self.__threadDict[threadID])
 
   def __get_html_text(self, html):
+    """
+    Returns the html text from the html page.
+    """
     from bs4 import BeautifulSoup
+    import re
     soup = BeautifulSoup(html)
-        
+    final_str = ""
     for tag in ['script','style']:
         for s in soup.find_all(tag):
             s.replaceWith(" ")
     try:
         ht = str(soup.prettify())
-# this is to prevent words from glueing together after tags are removed
+        # this is to prevent words from glueing together after
+        # tags are removed
         soup2 = BeautifulSoup(ht)
-        return str(soup2.get_text())
-# content extracted
+        final_str = str(soup2.get_text())
 
     except:
-# the prettify() fn goes into infinte recursion when <TABLE> is present        
-        return str(soup.get_text())
+        # the prettify() fn goes into infinte recursion
+        # when <TABLE> is present        
+        final_str = str(soup.get_text())
+
+    return re.sub('[\W_]+', ' ', final_str)
 
   def __processCrawledURL(self, threadID):
 
