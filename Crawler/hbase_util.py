@@ -4,6 +4,7 @@
 # This file contains code for creating rows and querying the tables of Hbase.
 #
 
+import Pyro4
 import happybase
 import logging
 import sys
@@ -13,7 +14,21 @@ import traceback
 import logger
 
 thrift_port = 9001
-thrift_host = "172.16.114.80"
+thrift_host = "172.16.114.78"
+
+def connect_to_index_mgr(uri = None):
+  if uri is None:
+    uri = input("Enter the uri of the index manager: ").strip()
+  index_mgr = Pyro4.Proxy(uri)
+  if index_mgr is None:
+    logging.error("Couldn't connect to IndexManager with URI: %s" %uri)
+    raise RuntimeError("Couldn't connect to IndexManager with URI: %s" %uri)
+
+  return index_mgr
+
+# Global index_mgr object, to update
+# the crawled doc count
+index_mgr = connect_to_index_mgr()
 
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
@@ -95,13 +110,21 @@ def update_crawl_count(count):
   '''
   Updates the Hbase crawl count by count and returns the new value.
   '''
+  # Update to index_mgr
+  t1 = time.time()
+  new_count = index_mgr.add_crawl_count(count)
+  logging.info("Updated crawl_count in index manager in %s sec"
+    %(time.time() - t1))
+
+  # Update in crawl stats table
   t1 = time.time()
   con = get_hbase_connection()
   table = con.table('crawl_statistics')
   db_count = table.counter_inc(b'crawl', b'stats:count', value=count)
   logging.info("Updated hbase crawl count to %s in %s sec" %(db_count,
-   time.time() - t1))
-  return int(db_count)
+    time.time() - t1))
+
+  return int(new_count)
 
 
 def post_web_doc(url_hash, url, html_string):
@@ -125,6 +148,7 @@ def post_web_doc(url_hash, url, html_string):
       b'cf1:urlhash': bytes(url_hash, "utf-8")
     })
   logging.info("Stored the web page in the database in %s sec." %(time.time() - t1))
+
 
 def check_web_doc(url_hash):
   '''
@@ -202,19 +226,18 @@ def update_inv_index(url_hash, doc_index):
   logging.info("Updated inv_index for doc: %s in %f time" %(url_hash,
     (time.time() - t1)))
 
-def retrieve_docs_html(num_docs):
+def retrieve_docs_content(start_id, num_docs):
   """
-  Given the number of docs to be retrieved, returns a dict
-  with the doc identifier - which is its url_hash as key and the
-  html text of the doc as the value.
+  Retrieves the docs content for docs with ids start_id
+  to start_id + num_docs - 1, inclusive.
   """
   # TODO - Store the IPs vs ranges of docs indexed by them
   import socket
-  t1 = time.time()
+  start_time = time.time()
   con = get_hbase_connection()
   table = con.table('index_stats')
-  last_id = table.counter_inc(b'index', b'stats:counter', value=num_docs)
-  table.put(bytes(str("%d-%d" %(last_id-num_docs+1, last_id)), "utf-8"),
+  last_id = table.counter_inc(b'index', b'stats:counter', value = num_docs)
+  table.put(bytes(str("%d-%d" %(start_id, last_id)), "utf-8"),
     {
       b'stats:ip' : bytes(socket.gethostname(), "utf-8")
     })
@@ -223,15 +246,19 @@ def retrieve_docs_html(num_docs):
   con = get_hbase_connection()
   tab1 = con.table('enumerate_docs')
   tab2 = con.table('web_doc')
-  for doc_id in range(last_id-num_docs+1, last_id+1):
+  for doc_id in range(start_id, last_id + 1):
     url_hash = tab1.row(bytes(str(doc_id), "utf-8")).get(b'cf1:urlhash')
     if url_hash is None:
-      break
-    html_string = tab2.row(url_hash)[b'details:html']
-    doc_list[url_hash.decode("utf-8")] = html_string.decode("utf-8")
+      logging.error("Couldn't retrieve url_hash for doc_id: %d, skipping" % doc_id)
+      continue
+    # Add doc to doc_list
+    content = tab2.row(url_hash)[b'details:html']
+    # Key is a 2 tuple of doc_id, url_hash
+    doc_list[(doc_id, url_hash.decode("utf-8"))] = content.decode("utf-8")
 
-  logging.info("Retrieved docs %d-%d in %f sec" %(last_id-num_docs, doc_id-1,
-    time.time()-t1))
+  logging.info("Retrieved docs %d-%d in %f sec" %(start_id, doc_id - 1,
+    time.time() - start_time))
+
   return doc_list
 
 def get_occuring_docs(term):

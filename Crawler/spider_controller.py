@@ -5,6 +5,7 @@ import threading
 from collections import deque
 
 import hbase_util
+import logger
 
 from crawler import executeCrawler
 
@@ -16,7 +17,7 @@ HTMLString_KEY = 'htmlString'
 class spider_controller:
 
   def __init__(self, threadsMaxNumber, pagesMaxNumber, start_url):
-
+    
     self.__threadsMaxNumber = threadsMaxNumber
     self.__pagesMaxNumber = pagesMaxNumber
     self.__tot_crawl_count = 0
