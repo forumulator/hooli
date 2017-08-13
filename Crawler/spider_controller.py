@@ -1,4 +1,5 @@
 import hashlib
+import re
 import time
 import threading
 
@@ -9,9 +10,10 @@ import hbase_util
 from crawler import executeCrawler
 
 POST_TO_DB_TIME_INTERVAL = 20
-SetOfURLs_KEY = 'setOfURLs'
-HTMLString_KEY = 'htmlString'
-
+SetOfURLs_KEY = "setOfURLs"
+HTMLString_KEY = "htmlString"
+pattern = re.compile("[\W_]+")
+Wiki_substring = 'en.wikipedia.org/wiki/'
 
 class spider_controller:
 
@@ -137,10 +139,9 @@ class spider_controller:
     Returns the html text from the html page.
     """
     from bs4 import BeautifulSoup
-    import re
     soup = BeautifulSoup(html)
     final_str = ""
-    for tag in ['script','style']:
+    for tag in ["script","style"]:
         for s in soup.find_all(tag):
             s.replaceWith(" ")
     try:
@@ -155,7 +156,7 @@ class spider_controller:
         # when <TABLE> is present        
         final_str = str(soup.get_text())
 
-    return re.sub('[\W_]+', ' ', final_str)
+    return pattern.sub(" ", final_str)
 
   def __processCrawledURL(self, threadID):
 
@@ -174,10 +175,9 @@ class spider_controller:
 
     # for each url, check if it is already crawled
     for url in self.threadReturnDataDict[threadID][SetOfURLs_KEY]:
-
       urlHash = hashlib.sha256(bytes(url, "utf-8")).hexdigest()
 
-      if (urlHash not in self.__alreadyCrawledSet):
+      if (Wiki_substring in url and urlHash not in self.__alreadyCrawledSet):
         self.__urlToCrawlDeque.append(url)
 
   def __createAndStartNewThread(self,t_id, url):

@@ -81,6 +81,7 @@ def create_crawl_count_table():
 
     table = con.table('index_stats')
     table.counter_set(b'index', b'stats:counter', 1)
+    table.counter_set(b'index', b'stats:total_length', 0)
     logging.info("Index Stats counter created")
 
   except Exception as e:
@@ -163,18 +164,18 @@ def update_inv_index(url_hash, doc_index):
   which contains terms of the doc as keys and the list of the term's
   positions in the doc as values, updates the inv_index and the web_doc table.
   """
-  # If we are not really using the font/formatting of words might as well
-  # store just words and their pos in the html_string of web_docs table
-  # further decreasing its size.
   t1 = time.time()
   term_count = len(doc_index)
   con = get_hbase_connection()
   table = con.table('web_doc')
-  # What is the point of this?
+  # |D| is needed for bm25 calculation
   table.put(bytes(url_hash, "utf-8"),
     {
       b'details:term_count' : bytes(str(term_count), "utf-8")
     })
+  # storing total term count to calculate average doc_length
+  table = con.table("index_stats")
+  table.counter_inc(b'index', b'stats:total_length', value=term_count)
 
   con = get_hbase_connection()
   table = con.table('inv_index')
@@ -182,13 +183,9 @@ def update_inv_index(url_hash, doc_index):
   # TODO - try changing to with
   col_name = "docs:%s" %url_hash
   for term in doc_index:
-    content = ""
-    for pos in doc_index[term]:
-      content += "%d " %(pos)
-
     bat.put(bytes(term, "utf-8"),
       {
-      bytes(col_name, "utf-8") : bytes(content, "utf-8")
+      bytes(col_name, "utf-8") : bytes(doc_index[term], "utf-8")
       })
     # I can do this in another pass
     #table.counter_inc(bytes(term, "utf-8"), b'docs:counter')
@@ -244,7 +241,8 @@ def get_occuring_docs(term):
 
   docs_dict = {}
   for doc_with_cf in row:
-    docs_dict[doc_with_cf.strip("docs:")] = row[doc_with_cf]
+    doc_str = doc_with_cf.decode("utf-8")[5:]
+    docs_dict[doc_str] = row[doc_with_cf]
 
   return docs_dict
 
@@ -262,6 +260,23 @@ def remove_table(table_list):
     else:
       print("Deleted: %s" %table)
       logging.info("Deleted Table: %s" %table)
+
+def get_indexed_corpus_size():
+  # Currently returning the number of crawled until index manager is created
+  con = get_hbase_connection()
+  table = con.table('crawl_statistics')
+  return table.counter_get(b'crawl', b'stats:count')
+
+def get_url(doc_list):
+  t1 = time.time()
+  url_list = []
+  for doc in doc_list:
+    con = get_hbase_connection()
+    table = con.table('web_doc')
+    url = table.row(bytes(doc, "utf-8"))[b'details:url']
+    url_list.append(url)
+  logging.info("Retrived url for given list in %f sec" %(time.time()-t1))
+  return url_list
 
 if __name__ == "__main__":
   logger.initialize()
