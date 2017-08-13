@@ -35,12 +35,56 @@ def tf_idf1(results):
   # print(results)
   for doc in results.keys():
     score = 0
-    for tf,no_docs in results[doc]:
+    for tf, no_docs in results[doc]:
       score += tf*(math.log(corpus_sz/no_docs))
     results_rank.append((score, doc))
   results_rank = sorted(results_rank, reverse=True)
   logging.info("Scores after ranking: %s" %results_rank[:10])
-  return [doc for sc,doc in results_rank]
+  return [doc for sc, doc in results_rank]
+
+class Bm25Ranker:
+  # bm parameters, can be adjusted
+  bm_b = 0.75
+  bm_k = 1.6
+  avg_doc_len = hbase_util.index_mgr.p_avg_doc_len
+
+  # query needs to be the sanitized query
+  def __init__(self, query, tfidf = None):
+    self.words = query.split()
+    self.tfidf = tfidf
+
+  def preprocess(self):
+    if not (self.tfidf is None):
+      return
+    self.tfidf = {}
+    for term in self.words:
+      compute_tf_idf(term, self.tfidf)
+
+  def idf_bm(self, containing):
+    return math.log((corpus_sz - containing + 0.5) \
+        / (containing + 0.5))
+
+  def bm25_term_score(self, doc, tf, containing):
+    doc_len = hbase_util.get_doc_length(doc)
+    return (idf_bm(containing) * ((tf * (bm_k + 1)) \
+        / (tf + (bm_k * (1 - bm_b +  \
+          (bm_b * (doc_len) / (avg_doc_len)))))))
+
+  def rank(self):
+    tfidf = self.tfidf
+    results = [] # Contains all doc scores
+    for doc in tfidf.keys():
+      score = 0
+      # Doc score is the sum of term scores
+      # for each query term
+      for term in tfidf[doc]:
+        score += bm25_term_score(doc, term[0], term[1])
+      
+      results.append((score, doc))
+    # Sort by descending order of score and return 
+    results = sorted(results, reverse = True)
+    return [doc for sc, doc in results]
+
 
 
 rank_fn = {"tf-idf1": tf_idf1}

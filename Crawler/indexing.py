@@ -21,9 +21,12 @@ def index_one_file(termlist):
 
 def build_index():
   while(True):
-    doc_content_dict = hbase_util.retrieve_docs_html(num_docs_to_index)
-    if len(doc_content_dict) == 0:
+    num_docs, start_id = index_mgr.retrieve_docs_ids(num_docs_to_index)
+    if num_docs == 0:
+      # TODO: Sleep instead of break?
       break
+
+    doc_content_dict = hbase_util.retrieve_docs_content(start_id, num_docs)
 
     for doc in doc_content_dict.keys():
       t1 = time.time()
@@ -33,6 +36,7 @@ def build_index():
       doc_content_dict[doc] = doc_content_dict[doc].lower().split()
       doc_content_dict[doc] = index_one_file(doc_content_dict[doc])
       hbase_util.update_inv_index(doc, doc_content_dict[doc])
+      index_mgr.update_avg_doc_len(len(doc_content_dict[doc]))
       logging.info("Completed indexing doc: %s in %f sec" %(doc,
         time.time() - t1))
 

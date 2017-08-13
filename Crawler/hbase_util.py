@@ -33,7 +33,7 @@ index_mgr = connect_to_index_mgr()
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
 
-def create_crawl_count_table():
+def setup_tables():
   '''
   Creates all the Hbase tables necessary for crawling,
   storing the web_docs and indexing and initializes them.
@@ -97,6 +97,7 @@ def create_crawl_count_table():
     table = con.table('index_stats')
     table.counter_set(b'index', b'stats:counter', 1)
     table.counter_set(b'index', b'stats:total_length', 0)
+    table.counter_set(b'index', b'stats:avg_dl', 0)
     logging.info("Index Stats counter created")
 
   except Exception as e:
@@ -223,6 +224,7 @@ def update_inv_index(url_hash, doc_index):
   logging.info("Updated inv_index for doc: %s in %f time" %(url_hash,
     (time.time() - t1)))
 
+
 def retrieve_docs_content(start_id, num_docs):
   """
   Retrieves the docs content for docs with ids start_id
@@ -251,12 +253,13 @@ def retrieve_docs_content(start_id, num_docs):
     # Add doc to doc_list
     content = tab2.row(url_hash)[b'details:html']
     # Key is a 2 tuple of doc_id, url_hash
-    doc_list[(doc_id, url_hash.decode("utf-8"))] = content.decode("utf-8")
+    doc_list[url_hash.decode("utf-8")] = content.decode("utf-8")
 
   logging.info("Retrieved docs %d-%d in %f sec" %(start_id, doc_id - 1,
     time.time() - start_time))
 
   return doc_list
+
 
 def get_occuring_docs(term):
   """
@@ -305,6 +308,44 @@ def get_url(doc_list):
   logging.info("Retrived url for given list in %f sec" %(time.time()-t1))
   return url_list
 
+def get_avg_doc_len():
+  t1 = time.time()
+  conn = get_hbase_connection()
+  table = conn.table('index_stats')
+  avg_doc_len = table.counter_get(b'index', b'stats:avg_dl')
+  logging.info("Retrieved avg doc len in %s secs" \
+     %(time.time() - t1))
+
+  return avg_doc_len
+
+# TODO: Do batch updates
+def update_avg_doc_len(avg_doc_len):
+  """
+  Update avg_doc_len
+  """
+  t1 = time.time()
+  conn = get_hbase_connection()
+  table = conn.table('index_stats')
+  table.counter_set(b'index', b'stats:avg_dl', avg_doc_len)
+  logging.info("Updated avg doc len in %s secs" \
+     %(time.time() - t1))
+
+  return avg_doc_len
+
+# doc is actually the url_hash
+def get_doc_length(doc):
+  """ Get the doc lenght of doc with url_hash
+  doc
+  """
+  t1 = time.time()
+  con = get_hbase_connection()
+  table = con.table('web_doc')
+  doc_length = table.row(bytes(doc, "utf-8")) \
+      ['details:term_count']
+  logging.info("Retrieved doc_length for doc: %s in %s secs" \
+     %(doc, time.time() - t1))
+  return doc_length
+
 if __name__ == "__main__":
   logger.initialize()
-  create_crawl_count_table()
+  setup_tables()
