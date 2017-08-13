@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import re
 import time
 import threading
@@ -6,7 +7,6 @@ import threading
 from collections import deque
 
 import hbase_util
-import logger
 
 from crawler import executeCrawler
 
@@ -19,7 +19,7 @@ Wiki_substring = 'en.wikipedia.org/wiki/'
 class spider_controller:
 
   def __init__(self, threadsMaxNumber, pagesMaxNumber, start_url):
-    
+
     self.__threadsMaxNumber = threadsMaxNumber
     self.__pagesMaxNumber = pagesMaxNumber
     self.__tot_crawl_count = 0
@@ -66,8 +66,8 @@ class spider_controller:
 
       # __urlToCrawlDeque is empty, but threads running
       if len(self.__urlToCrawlDeque) == 0:
-        print("__urlToCrawlDeque empty, going to sleep for 5 seconds")
-        time.sleep(5)
+        logging.info("__urlToCrawlDeque empty, going to sleep for 5 seconds")
+        time.sleep(2)
         continue
 
       while (len(self.__urlToCrawlDeque) != 0 and
@@ -82,17 +82,17 @@ class spider_controller:
           self.__alreadyCrawledSet.add(url_hash)
           continue
         #else part
-        print("creating thread for %s"% url)
+        # print("creating thread for %s"% url)
         for t_id in range(1,self.__threadsMaxNumber + 1):
           if self.__threadDict.get(t_id) is None:
             self.__createAndStartNewThread(t_id, url)
             break
-        time.sleep(1)
+        # time.sleep(1)
 
-      print("Iteration Done. Sleeping for 2 seconds.")
-      print("%d pages crawled"%self.__tot_crawl_count)
-      print("%d seconds passed"%(time.time() - self.__startTime))
-      time.sleep(2)
+      # logging.info("Iteration Done. Sleeping for 1 seconds.")
+      logging.info("%d pages crawled"%self.__tot_crawl_count)
+      logging.info("%d seconds passed"%(time.time() - self.__startTime))
+      time.sleep(1)
 
   def __postToDBIfValid(self):
 
@@ -101,7 +101,7 @@ class spider_controller:
       # if the global limit has exceeded
       if (hbase_util.update_crawl_count(self.__numberOfURLsCrawled) >
         self.__pagesMaxNumber):
-        print("Pages limit reached. Stopping spider.")
+        logging.info("Pages limit reached. Stopping spider.")
         exit(0)
       self.__numberOfURLsCrawled = 0
       self.__lastPostTimeToDB = time.time()
@@ -111,7 +111,7 @@ class spider_controller:
     for threadID in list(self.__threadDict.keys()):
 
       if not self.__threadDict[threadID].is_alive():
-        print("thread %d is not alive"% threadID)
+        # print("thread %d is not alive"% threadID)
 
         # Check if any data has been added to the dict by the thread.
         if self.threadReturnDataDict.get(threadID) is not None:

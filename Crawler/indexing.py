@@ -25,16 +25,17 @@ def build_index():
     if len(doc_content_dict) == 0:
       break
 
+    t1 = time.time()
     for doc in doc_content_dict.keys():
-      t1 = time.time()
+      
       # remove this line for next crawling
       # doc_content_dict[doc] = re.sub('[\W_]+', ' ', doc_content_dict[doc])
       # Need to do stemming and stop word removal
       doc_content_dict[doc] = doc_content_dict[doc].lower().split()
       doc_content_dict[doc] = index_one_file(doc_content_dict[doc])
       hbase_util.update_inv_index(doc, doc_content_dict[doc])
-      logging.info("Completed indexing doc: %s in %f sec" %(doc,
-        time.time() - t1))
+    logging.info("Completed indexing %s docs in %f sec" %(num_docs_to_index,
+     time.time() - t1))
 
 
 
