@@ -21,7 +21,7 @@ Wiki_substring = 'en.wikipedia.org/wiki/'
 
 class spider_controller:
 
-  def __init__(self, threadsMaxNumber = DEFAULT_THREADS_MAX,
+  def __init__(self, threadsMaxNumber = DEFAULT_MAX_THREADS,
       pagesMaxNumber = DEFAULT_CRAWL_MAX, start_url = DEFAULT_CRAWL_URL):
 
     self.__threadsMaxNumber = threadsMaxNumber
