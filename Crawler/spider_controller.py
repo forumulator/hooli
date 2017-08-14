@@ -9,6 +9,7 @@ from collections import deque
 import hbase_util
 
 from crawler import executeCrawler
+from config import *
 
 POST_TO_DB_TIME_INTERVAL = 20
 SetOfURLs_KEY = "setOfURLs"
@@ -18,7 +19,8 @@ Wiki_substring = 'en.wikipedia.org/wiki/'
 
 class spider_controller:
 
-  def __init__(self, threadsMaxNumber, pagesMaxNumber, start_url):
+  def __init__(self, threadsMaxNumber = DEFAULT_THREADS_MAX,
+      pagesMaxNumber = DEFAULT_CRAWL_MAX, start_url = DEFAULT_CRAWL_URL):
 
     self.__threadsMaxNumber = threadsMaxNumber
     self.__pagesMaxNumber = pagesMaxNumber
