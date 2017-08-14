@@ -34,13 +34,15 @@ class Indexer:
     index_mgr = self.index_mgr
     hbase_util = self.hbase_util
     while(True):
-      num_docs, start_id = index_mgr.retrieve_docs_ids(num_docs_to_index)
+      num_docs, start_id = index_mgr.retrieve_docs_ids(Indexer.num_docs_to_index)
       self.indexed_page_count += num_docs
       if num_docs == 0:
         if index_mgr.is_crawling_done():
           break
         else:
+          logging.info("Nothing to index, sleeping for 5")
           time.sleep(5)
+          continue
 
       doc_content_dict = hbase_util.retrieve_docs_content(start_id, num_docs)
 
@@ -50,11 +52,11 @@ class Indexer:
         # doc_content_dict[doc] = re.sub('[\W_]+', ' ', doc_content_dict[doc])
         # Need to do stemming and stop word removal
         doc_content_dict[doc] = doc_content_dict[doc].lower().split()
-        doc_content_dict[doc] = index_one_file(doc_content_dict[doc])
+        doc_content_dict[doc] = self.index_one_file(doc_content_dict[doc])
         hbase_util.update_inv_index(doc, doc_content_dict[doc])
         index_mgr.update_avg_doc_len(len(doc_content_dict[doc]))
 
-      logging.info("Completed indexing %s docs in %f sec" %(num_docs_to_index,
+      logging.info("Completed indexing %s docs in %f sec" %(Indexer.num_docs_to_index,
           time.time() - t1))
 
     return self.indexed_page_count

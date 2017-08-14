@@ -63,19 +63,22 @@ def setup_tables():
         })
       logging.info("Inverted Index Table created")
 
+    tb_index_stats_cr = False
     # Stores the index stats - how many files have been indexed
     if not b'index_stats' in con.tables():
       con.create_table('index_stats',
         {
           'stats': dict(),
         })
+      tb_index_stats_cr = True
       logging.info("Index Stats Table created")
 
-    table = con.table('index_stats')
-    table.counter_set(b'index', b'stats:counter', 1)
-    table.counter_set(b'index', b'stats:total_length', 0)
-    table.counter_set(b'index', b'stats:avg_dl', 0)
-    logging.info("Index Stats counter created")
+    if tb_index_stats_cr:
+      table = con.table('index_stats')
+      table.counter_set(b'index', b'stats:counter', 0)
+      table.counter_set(b'index', b'stats:total_length', 0)
+      table.counter_set(b'index', b'stats:avg_dl', 0)
+      logging.info("Index Stats counter created")
 
   except Exception as e:
     # Print stack trace
@@ -84,6 +87,24 @@ def setup_tables():
     return False
 
   return True
+
+INDEX_TABLES = [ TB_INV_INDEX, TB_INDEX_STATS ]
+def clear_index_data():
+  conn = get_hbase_connection()
+  for table in INDEX_TABLES:
+    conn.disable_table(table)
+    conn.delete_table(table)
+
+  setup_tables()
+
+CRAWL_TABLES = [ TB_CRAWL_STATS, TB_ENUM_DOCS, TB_WEB_DOC ]
+def clear_crawl_data():
+  conn = get_hbase_connection()
+  for table in CRAWL_TABLES:
+    conn.disable_table(table)
+    conn.delete_table(table)
+
+  setup_tables()
 
 if __name__ == "__main__":
   logger.initialize()

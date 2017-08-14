@@ -29,17 +29,17 @@ class IndexManager:
 		# Get the processed docs from the stats table
 		stats_table = conn.table('index_stats')
 		self.processed = int(stats_table.counter_get(b'index', 
-			b'stats:counter', value=num_docs))
+			b'stats:counter'))
 
 		self.avg_doc_len = HBase.get_avg_doc_len()
 		
 		logging.info("Initialising index manager with \
 			doc_count: %d, processed_count: %d, avg_doc_len: %d" \
-			%(self.doc_count, self.processed_count, self.avg_doc_len))
+			%(self.doc_count, self.processed, self.avg_doc_len))
 
 		print("Initialising index manager with \
 			doc_count: %d, processed_count: %d, avg_doc_len: %d" \
-			%(self.doc_count, self.processed_count, self.avg_doc_len))
+			%(self.doc_count, self.processed, self.avg_doc_len))
 
 		# necessary because multiple RPC run on different threads
 		self.lock = threading.Lock()
@@ -56,10 +56,10 @@ class IndexManager:
 	def p_avg_doc_len(self):
 		return self.avg_doc_len
 
-	def crawling_done():
+	def crawling_done(self):
 		self.f_crawling_done = True
 
-	def is_crawling_done():
+	def is_crawling_done(self):
 		return self.f_crawling_done
 
 	def retrieve_docs_ids(self, num):
@@ -68,14 +68,20 @@ class IndexManager:
 		number == num. If num docs are unavailable, returns the
 		maximum number possible
 		"""
+		# print("Index_mgr: Retrieving %d doc ids" % num)
 		self.lock.acquire()
 		unindexed = self.doc_count - self.processed
-		giving, start = 0, self.doc_count + 1
+		giving, start = 0, self.processed + 1
+		
 		if unindexed >= num:
 			giving = num
 		else:
 			giving = unindexed
-		self.doc_count += giving
+		
+		if (giving > 0):
+			self.processed += giving
+		else:
+			giving = 0
 		self.lock.release()
 		return (giving, start)
 

@@ -164,7 +164,7 @@ def retrieve_docs_content(start_id, num_docs):
     doc_list[url_hash.decode("utf-8")] = content.decode("utf-8")
 
   logging.info("Retrieved docs %d-%d in %f sec" %(start_id, doc_id - 1,
-    time.time() - start_time))
+    time.time() - t1))
 
   return doc_list
 

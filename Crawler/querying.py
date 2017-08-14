@@ -68,11 +68,13 @@ class Bm25Ranker:
 
   def bm25_term_score(self, doc, tf, containing):
     doc_len = hbase_util.get_doc_length(doc)
-    return (idf_bm(containing) * ((tf * (bm_k + 1)) \
+    return (self.idf_bm(containing) * ((tf * (bm_k + 1)) \
         / (tf + (bm_k * (1 - bm_b +  \
           (bm_b * (doc_len) / (avg_doc_len)))))))
 
   def rank(self):
+    self.preprocess()
+    
     tfidf = self.tfidf
     results = [] # Contains all doc scores
     for doc in tfidf.keys():
@@ -80,7 +82,7 @@ class Bm25Ranker:
       # Doc score is the sum of term scores
       # for each query term
       for term in tfidf[doc]:
-        score += bm25_term_score(doc, term[0], term[1])
+        score += self.bm25_term_score(doc, term[0], term[1])
       
       results.append((score, doc))
     # Sort by descending order of score and return 
