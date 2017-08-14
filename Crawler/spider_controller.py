@@ -103,6 +103,7 @@ class spider_controller:
       # if the global limit has exceeded
       if (hbase_util.update_crawl_count(self.__numberOfURLsCrawled) >
         self.__pagesMaxNumber):
+        hbase_util.index_mgr.crawling_done()
         logging.info("Pages limit reached. Stopping spider.")
         exit(0)
       self.__numberOfURLsCrawled = 0

@@ -16,6 +16,8 @@ class Indexer:
   def __init__(self, index_mgr, hbase_util):
     self.index_mgr = index_mgr
     self.hbase_util = hbase_util
+    # count of total pages indexed
+    self.indexed_page_count = 0
     logger.initialize()
 
   def index_one_file(self, termlist):
@@ -33,9 +35,13 @@ class Indexer:
     hbase_util = self.hbase_util
     while(True):
       num_docs, start_id = index_mgr.retrieve_docs_ids(num_docs_to_index)
+      self.indexed_page_count += num_docs
       if num_docs == 0:
-        # TODO: Sleep instead of break?
-        break
+        if index_mgr.is_crawling_done():
+          break
+        else:
+          time.sleep(5)
+
       doc_content_dict = hbase_util.retrieve_docs_content(start_id, num_docs)
 
       t1 = time.time()
@@ -51,6 +57,8 @@ class Indexer:
       logging.info("Completed indexing %s docs in %f sec" %(num_docs_to_index,
           time.time() - t1))
 
+    return self.indexed_page_count
+
 
 
 def calc_weights():
@@ -60,4 +68,5 @@ def calc_weights():
 
 # TODO: Create the indexer object in a thread
 if __name__ == "__main__":
-  Indexer(index_mgr, hbase_util).build_index()
+  pages = Indexer(index_mgr, hbase_util).build_index()
+  print("Indexer done after indexing %d pages" % pages)

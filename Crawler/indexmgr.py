@@ -18,6 +18,8 @@ class IndexManager:
 	Assuming that all the crawled docs also need to be indexed
 	"""
 	def __init__(self):
+		# Crawling done flag
+		self.f_crawling_done = False
 		conn = HBase.get_hbase_connection()
 		# Get the total number of docs crawled from the
 		# crawl stats table
@@ -31,8 +33,13 @@ class IndexManager:
 
 		self.avg_doc_len = HBase.get_avg_doc_len()
 		
-		logging.info("Initialising index manager with doc_count: %d, processed_count: %d" \
-			%(self.doc_count, self.processed_count))
+		logging.info("Initialising index manager with \
+			doc_count: %d, processed_count: %d, avg_doc_len: %d", \
+			%(self.doc_count, self.processed_count, self.avg_doc_len))
+
+		print("Initialising index manager with \
+			doc_count: %d, processed_count: %d, avg_doc_len: %d", \
+			%(self.doc_count, self.processed_count, self.avg_doc_len))
 
 		# necessary because multiple RPC run on different threads
 		self.lock = threading.Lock()
@@ -48,6 +55,12 @@ class IndexManager:
 	@property
 	def p_avg_doc_len(self):
 		return self.avg_doc_len
+
+	def crawling_done():
+		self.f_crawling_done = True
+
+	def is_crawling_done():
+		return self.f_crawling_done
 
 	def retrieve_docs_ids(self, num):
 		"""

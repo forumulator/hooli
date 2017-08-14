@@ -25,7 +25,7 @@ def connect_to_index_mgr(uri = None):
 
 # Global index_mgr object, to update
 # the crawled doc count
-index_mgr = connect_to_index_mgr()
+index_mgr = connect_to_index_mgr(index_mgr_uri)
 
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
