@@ -34,11 +34,11 @@ class IndexManager:
 		self.avg_doc_len = HBase.get_avg_doc_len()
 		
 		logging.info("Initialising index manager with \
-			doc_count: %d, processed_count: %d, avg_doc_len: %d", \
+			doc_count: %d, processed_count: %d, avg_doc_len: %d" \
 			%(self.doc_count, self.processed_count, self.avg_doc_len))
 
 		print("Initialising index manager with \
-			doc_count: %d, processed_count: %d, avg_doc_len: %d", \
+			doc_count: %d, processed_count: %d, avg_doc_len: %d" \
 			%(self.doc_count, self.processed_count, self.avg_doc_len))
 
 		# necessary because multiple RPC run on different threads

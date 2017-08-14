@@ -7,6 +7,8 @@ import time
 import hbase_util
 import logger
 
+from index_mgr_obj import index_mgr
+
 # Get actual value from Hbase
 corpus_sz = hbase_util.get_indexed_corpus_size()
 print(corpus_sz)
@@ -46,7 +48,7 @@ class Bm25Ranker:
   # bm parameters, can be adjusted
   bm_b = 0.75
   bm_k = 1.6
-  avg_doc_len = hbase_util.index_mgr.p_avg_doc_len
+  avg_doc_len = index_mgr.p_avg_doc_len
 
   # query needs to be the sanitized query
   def __init__(self, query, tfidf = None):

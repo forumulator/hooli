@@ -8,6 +8,8 @@ from collections import deque
 
 import hbase_util
 
+from index_mgr_obj import index_mgr
+
 from crawler import executeCrawler
 from config import *
 
@@ -101,11 +103,14 @@ class spider_controller:
     if time.time() - self.__lastPostTimeToDB > POST_TO_DB_TIME_INTERVAL:
       # post the count of the newly crawled urls and check
       # if the global limit has exceeded
-      if (hbase_util.update_crawl_count(self.__numberOfURLsCrawled) >
-        self.__pagesMaxNumber):
-        hbase_util.index_mgr.crawling_done()
+      if (index_mgr.p_doc_count > self.__pagesMaxNumber):
+        index_mgr.crawling_done()
         logging.info("Pages limit reached. Stopping spider.")
         exit(0)
+      # Update index_mgr and hbase for new urls
+      index_mgr.add_crawl_count(self.__numberOfURLsCrawled)
+      hbase_util.update_crawl_count(self.__numberOfURLsCrawled)
+      # Reset      
       self.__numberOfURLsCrawled = 0
       self.__lastPostTimeToDB = time.time()
 

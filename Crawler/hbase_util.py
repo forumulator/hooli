@@ -3,7 +3,6 @@
 #
 # This file contains code for creating rows and querying the tables of Hbase.
 #
-import Pyro4
 import happybase
 import logging
 import sys
@@ -13,19 +12,6 @@ import traceback
 import logger
 from config import *
 
-def connect_to_index_mgr(uri = None):
-  if uri is None:
-    uri = input("Enter the uri of the index manager: ").strip()
-  index_mgr = Pyro4.Proxy(uri)
-  if index_mgr is None:
-    logging.error("Couldn't connect to IndexManager with URI: %s" %uri)
-    raise RuntimeError("Couldn't connect to IndexManager with URI: %s" %uri)
-
-  return index_mgr
-
-# Global index_mgr object, to update
-# the crawled doc count
-index_mgr = connect_to_index_mgr(index_mgr_uri)
 
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
@@ -35,18 +21,12 @@ def update_crawl_count(count):
   '''
   Updates the Hbase crawl count by count and returns the new value.
   '''
-  # Update to index_mgr
-  t1 = time.time()
-  new_count = index_mgr.add_crawl_count(count)
-  logging.info("Updated crawl_count in index manager in %s sec"
-    %(time.time() - t1))
-
   # Update in Hbase crawl_stats table
   t1 = time.time()
   con = get_hbase_connection()
   table = con.table('crawl_statistics')
-  db_count = table.counter_inc(b'crawl', b'stats:count', value=count)
-  logging.info("Updated hbase crawl count to %s in %s sec" %(db_count,
+  new_count = table.counter_inc(b'crawl', b'stats:count', value=count)
+  logging.info("Updated hbase crawl count to %s in %s sec" %(new_count,
       time.time() - t1))
 
   return int(new_count)

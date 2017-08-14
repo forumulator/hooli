@@ -5,7 +5,7 @@ import re
 import time
 
 import hbase_util
-from hbase_util import index_mgr
+from index_mgr_obj import index_mgr
 
 import logger
 
