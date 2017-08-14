@@ -5,40 +5,51 @@ import re
 import time
 
 import hbase_util
+from hbase_util import index_mgr
+
 import logger
 
 
-num_docs_to_index = 30
+class Indexer:
+  num_docs_to_index = 30
 
-def index_one_file(termlist):
-  fileIndex = {}
-  for index, word in enumerate(termlist):
-    if word in fileIndex.keys():
-      fileIndex[word] += "%s " %index
-    else:
-      fileIndex[word] = "%s " %index
-  return fileIndex
+  def __init__(self, index_mgr, hbase_util):
+    self.index_mgr = index_mgr
+    self.hbase_util = hbase_util
+    logger.initialize()
 
-def build_index():
-  while(True):
-    num_docs, start_id = index_mgr.retrieve_docs_ids(num_docs_to_index)
-    if num_docs == 0:
-      # TODO: Sleep instead of break?
-      break
+  def index_one_file(self, termlist):
+    fileIndex = {}
+    for index, word in enumerate(termlist):
+      if word in fileIndex.keys():
+        fileIndex[word] += "%s " %index
+      else:
+        fileIndex[word] = "%s " %index
+    return fileIndex
 
-    doc_content_dict = hbase_util.retrieve_docs_content(start_id, num_docs)
 
-    for doc in doc_content_dict.keys():
+  def build_index(self):
+    index_mgr = self.index_mgr
+    hbase_util = self.hbase_util
+    while(True):
+      num_docs, start_id = index_mgr.retrieve_docs_ids(num_docs_to_index)
+      if num_docs == 0:
+        # TODO: Sleep instead of break?
+        break
+      doc_content_dict = hbase_util.retrieve_docs_content(start_id, num_docs)
+
       t1 = time.time()
-      # remove this line for next crawling
-      # doc_content_dict[doc] = re.sub('[\W_]+', ' ', doc_content_dict[doc])
-      # Need to do stemming and stop word removal
-      doc_content_dict[doc] = doc_content_dict[doc].lower().split()
-      doc_content_dict[doc] = index_one_file(doc_content_dict[doc])
-      hbase_util.update_inv_index(doc, doc_content_dict[doc])
-      index_mgr.update_avg_doc_len(len(doc_content_dict[doc]))
-      logging.info("Completed indexing doc: %s in %f sec" %(doc,
-        time.time() - t1))
+      for doc in doc_content_dict.keys():  
+        # remove this line for next crawling
+        # doc_content_dict[doc] = re.sub('[\W_]+', ' ', doc_content_dict[doc])
+        # Need to do stemming and stop word removal
+        doc_content_dict[doc] = doc_content_dict[doc].lower().split()
+        doc_content_dict[doc] = index_one_file(doc_content_dict[doc])
+        hbase_util.update_inv_index(doc, doc_content_dict[doc])
+        index_mgr.update_avg_doc_len(len(doc_content_dict[doc]))
+
+      logging.info("Completed indexing %s docs in %f sec" %(num_docs_to_index,
+          time.time() - t1))
 
 
 
@@ -47,6 +58,6 @@ def calc_weights():
   Makes a 
   """
 
+# TODO: Create the indexer object in a thread
 if __name__ == "__main__":
-  logger.initialize()
-  build_index()
+  Indexer(index_mgr, hbase_util).build_index()

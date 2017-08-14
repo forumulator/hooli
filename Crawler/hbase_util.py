@@ -3,7 +3,6 @@
 #
 # This file contains code for creating rows and querying the tables of Hbase.
 #
-
 import Pyro4
 import happybase
 import logging
@@ -14,7 +13,7 @@ import traceback
 import logger
 
 thrift_port = 9001
-thrift_host = "172.16.114.78"
+thrift_host = "localhost"
 
 def connect_to_index_mgr(uri = None):
   if uri is None:
@@ -118,13 +117,13 @@ def update_crawl_count(count):
   logging.info("Updated crawl_count in index manager in %s sec"
     %(time.time() - t1))
 
-  # Update in crawl stats table
+  # Update in Hbase crawl_stats table
   t1 = time.time()
   con = get_hbase_connection()
   table = con.table('crawl_statistics')
   db_count = table.counter_inc(b'crawl', b'stats:count', value=count)
   logging.info("Updated hbase crawl count to %s in %s sec" %(db_count,
-    time.time() - t1))
+      time.time() - t1))
 
   return int(new_count)
 
@@ -221,21 +220,26 @@ def update_inv_index(url_hash, doc_index):
     # It's possible that the connection timed out
     logging.error("Doc with url: %s suffered: %s" %(url_hash, e))
 
-  logging.info("Updated inv_index for doc: %s in %f time" %(url_hash,
+  logging.debug("Updated inv_index for doc: %s in %f time" %(url_hash,
     (time.time() - t1)))
 
 
 def retrieve_docs_content(start_id, num_docs):
   """
-  Retrieves the docs content for docs with ids start_id
-  to start_id + num_docs - 1, inclusive.
+  Given the number of docs to be retrieved, returns a dict
+  with the doc identifier - which is its url_hash as key and the
+  html text of the doc as the value.
   """
   # TODO - Store the IPs vs ranges of docs indexed by them
+  last_id = start_id + num_docs - 1
+
   import socket
-  start_time = time.time()
+  t1 = time.time()
   con = get_hbase_connection()
   table = con.table('index_stats')
-  last_id = table.counter_inc(b'index', b'stats:counter', value = num_docs)
+
+  # Update the table
+  table.counter_inc(b'index', b'stats:counter', value = num_docs)
   table.put(bytes(str("%d-%d" %(start_id, last_id)), "utf-8"),
     {
       b'stats:ip' : bytes(socket.gethostname(), "utf-8")
@@ -265,6 +269,7 @@ def get_occuring_docs(term):
   """
   Returns a dict of docs where the term occurs
   """
+  t1 = time.time()
   con = get_hbase_connection()
   table = con.table('inv_index')
   row = table.row(bytes(term, "utf-8"))
@@ -273,8 +278,10 @@ def get_occuring_docs(term):
   for doc_with_cf in row:
     doc_str = doc_with_cf.decode("utf-8")[5:]
     docs_dict[doc_str] = row[doc_with_cf]
-
+  logging.info("Retrived %s docs for term: %s in %f secs" %(len(docs_dict),
+    term, time.time()-t1))
   return docs_dict
+
 
 def remove_table(table_list):
   """
@@ -291,11 +298,16 @@ def remove_table(table_list):
       print("Deleted: %s" %table)
       logging.info("Deleted Table: %s" %table)
 
+
+# TODO: Add cases where Indexers can crash, so
+# update the stats:counter after indexing
 def get_indexed_corpus_size():
-  # Currently returning the number of crawled until index manager is created
+  # Retrieving the index stats:counter becuase that is
+  # updated as documents are retrived for indexing
   con = get_hbase_connection()
-  table = con.table('crawl_statistics')
-  return table.counter_get(b'crawl', b'stats:count')
+  table = con.table('index_stats')
+  return table.counter_get(b'index', b'stats:counter')
+
 
 def get_url(doc_list):
   t1 = time.time()
@@ -307,6 +319,7 @@ def get_url(doc_list):
     url_list.append(url)
   logging.info("Retrived url for given list in %f sec" %(time.time()-t1))
   return url_list
+
 
 def get_avg_doc_len():
   t1 = time.time()
@@ -345,6 +358,8 @@ def get_doc_length(doc):
   logging.info("Retrieved doc_length for doc: %s in %s secs" \
      %(doc, time.time() - t1))
   return doc_length
+
+
 
 if __name__ == "__main__":
   logger.initialize()
