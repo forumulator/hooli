@@ -235,33 +235,31 @@ def get_avg_doc_len():
 
   return avg_doc_len
 
-# TODO: Do batch updates
-def update_avg_doc_len(avg_doc_len):
-  """
-  Update avg_doc_len
-  """
+
+def get_tot_doc_len():
   t1 = time.time()
   conn = get_hbase_connection()
   table = conn.table('index_stats')
-  table.counter_set(b'index', b'stats:avg_dl', avg_doc_len)
-  logging.info("Updated avg doc len in %s secs" \
+  tot_doc_len = table.counter_get(b'index', b'stats:total_length')
+  logging.info("Retrieved tot doc len in %s secs" \
      %(time.time() - t1))
 
-  return avg_doc_len
+  return tot_doc_len
+
 
 # doc is actually the url_hash
 def get_doc_length(doc):
-  """ Get the doc lenght of doc with url_hash
-  doc
+  """ Get the doc lenght of doc with url_hash doc
   """
+
   t1 = time.time()
   con = get_hbase_connection()
   table = con.table('web_doc')
-  doc_length = table.row(bytes(doc, "utf-8")) \
-      ['details:term_count']
+  doc_length = table.row(bytes(doc, "utf-8"))[b'details:term_count']
   logging.info("Retrieved doc_length for doc: %s in %s secs" \
      %(doc, time.time() - t1))
-  return doc_length
+
+  return int(doc_length)
 
 if __name__ == "__main__":
   logger.initialize()

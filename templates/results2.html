@@ -7,6 +7,17 @@
 </head>
 
 <body>
+	<style type="text/css">
+		#rank-algo > div {
+		    display: inline-block;
+		    margin-right:15px;
+
+		}
+
+		#rank-algo > h4 {
+		    margin: 5px 10px;
+		}
+	</style>
 
 	<div id="header">																																																																														
 		<div style="text-align: center; padding: 20px 0px;" id="logo-wrapper">
@@ -25,7 +36,13 @@
 			<a href="#">Advanced Search Options</a>
 		</div>
 <div style="padding: 0px; display: none;" id="adv-options">
-			<form action=""> 
+			<form action="" id="rank-algo">
+			    <h4> Ranking Algorthm </h4>
+				<div class="algo"><input type="radio" name="rk-algo" value="tfidf" checked="checked">TF-IDF</div>
+				<div class="algo"><input type="radio" name="rk-algo" value="tfidf2">TF-IDF Enhanced</div>
+				<div class="algo"><input type="radio" name="rk-algo" value="bm25">BM25 </div>
+			</form>
+			<form action="" style="display:none"> 
 			Search the following types: <input name="res-type" value="{{ md.type_id }}" id="res-type" type="text"> <input value="Set" name="set-res-type" id="set-res-type" type="button"><br>
 			Connect as AND: <input name="and-conn" value="{{ md.and_q}}" id="and-conn" type="text"> <br>
 			Phrase Query: <input name="ph-conn" value="{{ md.ph_q}}" id="ph-conn" type="text"> <br>
@@ -48,6 +65,7 @@
 	<li><h3>The search took...</h3><p>{{ md.time }} seconds</p></li>
 	<li><h3>And Produced...</h3><p>{{ md.num_res }} results</p></li>
 	<li><h3>In...</h3><p>{{ md.pgs }} pages</p></li>
+	{#
 	<li><h3>Result by Types:</h3>
 		<p><b>HTML : </b> {{ file_res.html }}</p>
 		<p><b>PDF : </b> {{ file_res.pdf }}</p>
@@ -55,6 +73,7 @@
 		<p><b>IMAGES : </b> {{ file_res.pic }}</p>
 		<p><b>OTHER : </b> {{ file_res.other }}</p>
 	</li>
+	#}
 				
 			</ul>
 			<img src="{{ url_for('static', filename='images/article_bot.gif') }}" alt="" height="7" width="268"><br>
@@ -76,7 +95,7 @@
 
 				</p></div>
 				{% for res in entries %}
-				<li style="display: block; margin: 10px 0px;"> <a href="{{ res.link }}"><h2>{{ res.res_title }}</h2></a>
+				<li style="display: block; margin: 10px 0px;"> <a href="{{ res.link }}"><h2>{{ res.res_link }}</h2></a>
 <p style="padding: 3px 0px 0px;">{{ res.link }}</p>
 <p style="padding: 5px 0px; margin: 0px 0px 5px;">{{ res.desc|safe }}</p></li>
 				{% endfor %}
@@ -107,6 +126,7 @@
 		</ul>
 																																																													
 	<script type="text/javascript">
+		$("input[name='rk-algo'][value='{{ md.algo }}']").prop("checked",true);
 		
 		var num_res = {{ md.pg_size }};
 		var and_conn = $('#and-conn').val();
@@ -115,11 +135,17 @@
 		var type_id = $('#res-type').val()	;
 		var nav_page = 1;
 		var search_query = $('#search-box').val();
+		var this_pg = {{ md.pg_no }};
+
+		var call_gen = true;
 
 		function requestBuilder(){
 			
 			var encoded = encodeURIComponent(search_query);
-			var requ = 'q=' + encoded + '&&nr=' + num_res + '&&tid=' + type_id + '&&p=' + nav_page + '&&cand=' + and_conn + '&&cph=' + ph_conn + '&&cnot=' + not_conn;
+			var requ = 'q=' + encoded + '&&nr=' + num_res + '&&tid=' 
+				+ type_id + '&&p=' + nav_page + '&&cand=' + and_conn 
+				+ '&&cph=' + ph_conn + '&&cnot=' + not_conn
+				+ '&&algo=' + $('input[name="rk-algo"]:checked').val();
 			return requ;
 		}
 
@@ -131,7 +157,27 @@
 			document.location = '/search?' + requ;
 		}
 
+		$("#prev-pg").click(function(event) {
+			if (this_pg == 1) {
+				call_gen = false;
+				return false;
+			}
+			return true;
+		})
+
+		$("#next-pg").click(function(event) {
+			if (this_pg == {{ md.pgs }}) {
+				call_gen = false;
+				return false;
+			}
+			return true;
+		})
+
 		$('.page-nav').click(function() {
+			if (call_gen == false) {
+				call_gen = true;
+				return false;
+			}
 			nav_page = $(this).attr('data-page');
 			requ = requestBuilder();
 			document.location = '/search?' + requ;

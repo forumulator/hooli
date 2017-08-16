@@ -7,6 +7,18 @@
 </head>
 
 <body>
+	<style type="text/css">
+		#rank-algo > div {
+		    display: inline-block;
+		    margin-right:15px;
+
+		}
+
+		#rank-algo > h4 {
+		    margin: 5px 10px;
+		}
+	</style>
+
 	<div id="header">																																																																														
 		<div style="text-align: center; padding: 20px 0px;" id="logo-wrapper">
   <a style="text-align: center;" href=" / " class="logo"><img style="" src="{{ url_for('static', filename='images/hooli.jpg') }}" alt="setalpm" height="100"></a>
@@ -24,7 +36,13 @@
 			<a href="#">Advanced Search Options</a>
 		</div>
 <div style="padding: 0px; display: none;" id="adv-options">
-			<form action=""> 
+			<form action="" id="rank-algo">
+			    <h4> Ranking Algorthm </h4>
+				<div class="algo"><input type="radio" name="rk-algo" value="tfidf" checked="checked">TF-IDF</div>
+				<div class="algo"><input type="radio" name="rk-algo" value="tfidf2">TF-IDF Enhanced</div>
+				<div class="algo"><input type="radio" name="rk-algo" value="bm25">BM25 </div>
+			</form>
+			<form action="" style="display:none"> 
 			Search the following types: <input name="res-type" value="all" id="res-type" type="text"> <input value="Set" name="set-res-type" id="set-res-type" type="button"><br>
 			Connect as AND: <input name="and-conn" value="" id="and-conn" type="text"> <br>
 			Phrase Query: <input name="ph-conn" value="" id="ph-conn" type="text"> <br>
@@ -59,7 +77,10 @@
 		function requestBuilder(){
 			
 			var encoded = encodeURIComponent(search_query);
-			var requ = 'q=' + encoded + '&&nr=' + num_res + '&&tid=' + type_id + '&&p=' + nav_page + '&&cand=' + and_conn + '&&cph=' + ph_conn + '&&cnot=' + not_conn;
+			var requ = 'q=' + encoded + '&&nr=' + num_res + '&&tid=' 
+				+ type_id + '&&p=' + nav_page + '&&cand=' + and_conn 
+				+ '&&cph=' + ph_conn + '&&cnot=' + not_conn
+				+ '&&algo=' + $('input[name="rk-algo"]:checked').val();
 			return requ;
 		}
 

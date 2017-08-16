@@ -31,15 +31,15 @@ class IndexManager:
 		self.processed = int(stats_table.counter_get(b'index', 
 			b'stats:counter'))
 
-		self.avg_doc_len = HBase.get_avg_doc_len()
+		self.tot_doc_len = HBase.get_tot_doc_len()
 		
 		logging.info("Initialising index manager with \
-			doc_count: %d, processed_count: %d, avg_doc_len: %d" \
-			%(self.doc_count, self.processed, self.avg_doc_len))
+			doc_count: %d, processed_count: %d, tot_doc_len: %d" \
+			%(self.doc_count, self.processed, self.tot_doc_len))
 
 		print("Initialising index manager with \
-			doc_count: %d, processed_count: %d, avg_doc_len: %d" \
-			%(self.doc_count, self.processed, self.avg_doc_len))
+			doc_count: %d, processed_count: %d, tot_doc_len: %d" \
+			%(self.doc_count, self.processed, self.tot_doc_len))
 
 		# necessary because multiple RPC run on different threads
 		self.lock = threading.Lock()
@@ -53,8 +53,13 @@ class IndexManager:
 		return self.processed
 
 	@property
+	def p_tot_doc_len(self):
+		return self.tot_doc_len
+
+	@property
 	def p_avg_doc_len(self):
-		return self.avg_doc_len
+		tot, num = self.tot_doc_len, self.doc_count
+		return (tot / num)
 
 	def crawling_done(self):
 		self.f_crawling_done = True
@@ -93,11 +98,10 @@ class IndexManager:
 		
 		return count
 
-	def update_avg_doc_len(self, leng):
+	def update_tot_doc_len(self, leng):
 		self.lock.acquire()
-		self.avg_doc_len = ((self.avg_doc_len * self.doc_count)  \
-			+ leng) / (self.doc_count + 1)
-		ret = self.avg_doc_len
+		self.tot_doc_len += leng
+		ret = self.tot_doc_len
 		self.lock.release()
 		
 		return ret
