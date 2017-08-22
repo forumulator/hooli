@@ -41,6 +41,14 @@ def setup_tables():
         })
       logging.info("Web docs Table created")
 
+    # Stores the content of the crawled web pages
+    if not b'web_doc_content' in con.tables():
+      con.create_table('web_doc_content',
+        {
+          'details': dict(),
+        })
+      logging.info("Web doc Content Table created")
+
     # Enumerates the crawled pages for indexing
     if not b'enumerate_docs' in con.tables():
       con.create_table('enumerate_docs',
@@ -78,6 +86,7 @@ def setup_tables():
       table.counter_set(b'index', b'stats:counter', 0)
       table.counter_set(b'index', b'stats:total_length', 0)
       table.counter_set(b'index', b'stats:avg_dl', 0)
+      table.counter_set(b'inv_index', b'stats:counter', 0)
       logging.info("Index Stats counter created")
 
   except Exception as e:

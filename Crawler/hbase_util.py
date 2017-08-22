@@ -12,6 +12,9 @@ import traceback
 import logger
 from config import *
 
+thrift_port = 9001
+thrift_host = "172.16.114.80"
+depth = 2
 
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
@@ -32,7 +35,7 @@ def update_crawl_count(count):
   return int(new_count)
 
 
-def post_web_doc(url_hash, url, html_string):
+def post_web_doc(url_hash, url, html_string, html_title):
   '''
   Created a new record in the database for the given entry.
   '''
@@ -41,8 +44,16 @@ def post_web_doc(url_hash, url, html_string):
   table = con.table('web_doc')
   table.put(bytes(url_hash, "utf-8"), 
     {
-      b'details:url' : bytes(url, "utf-8"),
-      b'details:html': bytes(html_string, "utf-8"),
+      b'details:url'  : bytes(url, "utf-8"),
+      b'details:html' : bytes(html_string, "utf-8"),
+      b'details:title': bytes(html_title, "utf-8"),
+    })
+  # Stores the content of the web doc
+  content_hash = hashlib.sha256(bytes(html_string, "utf-8")).hexdigest()
+  table = con.table('web_doc_content')
+  table.put(bytes(content_hash, "utf-8"),
+    {
+      b'details:present' : bytes("1", "utf-8")
     })
 
   con = get_hbase_connection()
@@ -52,8 +63,8 @@ def post_web_doc(url_hash, url, html_string):
     {
       b'cf1:urlhash': bytes(url_hash, "utf-8")
     })
-  logging.info("Stored the web page in the database in %s sec." %(time.time() - t1))
-
+  logging.info("Stored the web page in the database in %s sec." %(
+    time.time() - t1))
 
 def check_web_doc(url_hash):
   '''
@@ -86,7 +97,7 @@ def check_web_doc(url_hash):
   return True
 
 
-def update_inv_index(url_hash, doc_index):
+def update_inv_index(url_hash, doc_index, max_tf):
   """
   Given doc identified by its url_hash and a dict - doc_index
   which contains terms of the doc as keys and the list of the term's
@@ -99,7 +110,8 @@ def update_inv_index(url_hash, doc_index):
   # |D| is needed for bm25 calculation
   table.put(bytes(url_hash, "utf-8"),
     {
-      b'details:term_count' : bytes(str(term_count), "utf-8")
+      b'details:term_count' : bytes(str(term_count), "utf-8"),
+      b'details:max_tf'     : bytes(str(max_tf), "utf-8"),
     })
   # storing total term count to calculate average doc_length
   table = con.table("index_stats")
@@ -115,8 +127,6 @@ def update_inv_index(url_hash, doc_index):
       {
       bytes(col_name, "utf-8") : bytes(doc_index[term], "utf-8")
       })
-    # I can do this in another pass
-    #table.counter_inc(bytes(term, "utf-8"), b'docs:counter')
 
   try:
     bat.send()
@@ -126,7 +136,6 @@ def update_inv_index(url_hash, doc_index):
 
   logging.debug("Updated inv_index for doc: %s in %f time" %(url_hash,
     (time.time() - t1)))
-
 
 def retrieve_docs_content(start_id, num_docs):
   """
@@ -168,6 +177,27 @@ def retrieve_docs_content(start_id, num_docs):
 
   return doc_list
 
+def retrieve_inv_index(no_alphabets):
+  t1 = time.time()
+  con = get_hbase_connection()
+  table = con.table('index_stats')
+  last_id = table.counter_inc(b'inv_index', b'stats:counter', value=no_alphabets)
+  if last_id >= (26**depth):
+    return {}, False
+  start_alpha = ""
+  end_alpha = ""
+  alph_sz = 26
+  start_id = last_id - no_alphabets
+  for i in range(depth):
+    start_alpha = chr(ord('a') + start_id%alph_sz) + start_alpha
+    end_alpha = chr(ord('a') + last_id%alph_sz) + end_alpha
+    start_id //= 26
+    last_id //= 26
+  con = get_hbase_connection()
+  table = con.table('inv_index')
+  logging.info("Retrieving from: %s to %s" %(start_alpha, end_alpha))
+  return (table.scan(row_start=bytes(start_alpha, "utf-8"),
+      row_stop=bytes(end_alpha, "utf-8")), True)
 
 def get_occuring_docs(term):
   """
@@ -180,18 +210,31 @@ def get_occuring_docs(term):
 
   docs_dict = {}
   for doc_with_cf in row:
+    # change from docs:doc_id to doc_id
     doc_str = doc_with_cf.decode("utf-8")[5:]
-    docs_dict[doc_str] = row[doc_with_cf]
+    docs_dict[doc_str] = {}
+    key_list = ["pos", "tf_idf", "tf_idf_norm", "bm25"]
+    row[doc_with_cf] = row[doc_with_cf].decode("utf-8").split('\n')
+    for i, item in enumerate(row[doc_with_cf]):
+      if i > 0:
+        # for scores
+        item = float(item)
+      else:
+        # convert positions from string to list of <int>
+        item = list(map(int, item.split()))
+      docs_dict[doc_str][key_list[i]] = item
   logging.info("Retrived %s docs for term: %s in %f secs" %(len(docs_dict),
     term, time.time()-t1))
   return docs_dict
 
 
-def remove_table(table_list):
+def remove_table(table_list=[]):
   """
   Disables and deletes the tables given in the list from Hbase.
   """
   con = get_hbase_connection()
+  if table_list == []:
+    table_list = con.tables()
   for table in table_list:
     try:
       con.delete_table(table, True)
@@ -224,6 +267,17 @@ def get_url(doc_list):
   logging.info("Retrived url for given list in %f sec" %(time.time()-t1))
   return url_list
 
+def check_web_doc_content(content_hash):
+  """
+  Checks if the given content_hash is present in the Hbase Table.
+  True if present and False otherwise.
+  """
+  con = get_hbase_connection()
+  table = con.table('web_doc_content')
+  row = table.row(bytes(content_hash, "utf-8"))
+  if not row:
+    return False
+  return True
 
 def get_avg_doc_len():
   t1 = time.time()
@@ -246,20 +300,26 @@ def get_tot_doc_len():
 
   return tot_doc_len
 
-
-# doc is actually the url_hash
-def get_doc_length(doc):
-  """ Get the doc lenght of doc with url_hash doc
-  """
-
-  t1 = time.time()
+def get_max_tf(doc):
   con = get_hbase_connection()
   table = con.table('web_doc')
-  doc_length = table.row(bytes(doc, "utf-8"))[b'details:term_count']
-  logging.info("Retrieved doc_length for doc: %s in %s secs" \
-     %(doc, time.time() - t1))
+  max_tf = table.row(bytes(doc, "utf-8"))[b'details:max_tf']
+  return int(max_tf.decode("utf-8"))
 
-  return int(doc_length)
+def get_doc_length(doc):
+  con = get_hbase_connection()
+  table = con.table('web_doc')
+  term_count = table.row(bytes(doc, "utf-8"))[b'details:term_count']
+  return int(term_count.decode("utf-8"))
+
+def update_inv_index_score(term, value):
+  con = get_hbase_connection()
+  table = con.table('inv_index')
+  try:
+    table.put(term, value)
+  except Exception as e:
+    logging.error("While updating the inverted index for term: %s"
+      "\ncaught the following error: %s" %(term, e))
 
 if __name__ == "__main__":
   logger.initialize()
