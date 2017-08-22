@@ -23,6 +23,41 @@ def sanitize_query(query):
   # TODO: Remove stop words and convert stemming
   return query
 
+def phrase_query(string):
+  """
+  Given query string - returns dict of docs containing the phrase
+  with the scores added up and pos of the first term.
+  Call this function instead of get_occuring_docs of hbase_util and
+  treat the entire string as one term
+  """
+  result = {}
+  pos_dict = {}
+  i = 0
+
+  string = sanitize_query(string)
+  for word in string.split():
+    if i == 0:
+      result = hbase_util.get_occuring_docs(word)
+      for doc in result.keys():
+        pos_dict[doc] = set(result[doc]["pos"])
+    else:
+      temp_dict = hbase_util.get_occuring_docs(word)
+      # check if doc exists in doc_dict of all other words
+      for doc in result.keys():
+        if doc not in temp_dict.keys():
+          del result[doc]
+        else:
+          # check if position of ith word is i next to first word
+          pos_dict[doc] = pos_dict[doc].intersection(
+            [posn-i for posn in temp_dict[doc]["pos"]])
+          if not pos_dict:
+            del result[doc]
+          else:
+            # document has passed checks till now and scores are updated
+            for score in result[doc]:
+              result[doc][score] += temp_dict[doc][score]
+    i += 1
+  return result
 
 def compute_tf_idf(term, results, operator="or"):
   doc_list = hbase_util.get_occuring_docs(term)
