@@ -26,6 +26,13 @@ def view_results(a = None):
 	not_q = request.args.get('cnot', '')
 	md = []
 
+	if and_q == "None":
+		and_q = ""
+
+	if not_q == "None":
+		not_q = ""
+
+
 	type_id = request.args.get('tid','all')
 
 	algo = request.args.get("algo", "tf_idf")
@@ -33,7 +40,7 @@ def view_results(a = None):
 	#	type_id = 'all'
 
 
-	send_query = search_query # + '&' + and_q + '&' + ph_q + '&' + not_q + '&' + type_id
+	send_query = search_query + '&' + and_q  + '&' + not_q
 
 	# start time
 	t_start = time.time()
@@ -49,7 +56,7 @@ def view_results(a = None):
 
 	# if hit then set else query the engine
 	if flag == 0:
-		url_list = querying.rank_results(send_query, algo)
+		url_list = querying.rank_results(search_query, algo, and_q, not_q)
 		res_cache.append((send_query, algo, url_list))
 	else:
 		url_list = cache_entry[2]
@@ -89,7 +96,7 @@ def view_results(a = None):
 	# entries = [dict(res_title = resl[0], link = resl[1], rank = resl[2], desc = resl[3]) for resl in pg_res]
 	entries = [dict(res_title = resl, link = resl, rank = 0, desc = "") for resl in pg_res]
 	md = dict(num_res = size, pg_no = pg, next_pg = pg + 1, prev_pg = pg - 1, pgs = pgs, \
-			search_query = search_query, and_q = None, ph_q = None, not_q = None, \
+			search_query = search_query, and_q = and_q, ph_q = ph_q, not_q = not_q, \
 			 start = start, stop = stop - 1, dym = None, \
 			 time = qtime, nav = nav, pg_size = pg_size, type_id = type_id, algo = algo)	
 

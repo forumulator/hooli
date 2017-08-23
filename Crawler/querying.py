@@ -252,4 +252,4 @@ def rank_results(query, rank_name="tf_idf",
 if __name__ == "__main__":
   rank_nm = input("Rank func: ")
   query = input("Search: ")
-rank_results(query, rank_nm)
+  rank_results(query, rank_nm)

@@ -39,13 +39,13 @@
 			<form action="" id="rank-algo">
 			    <h4> Ranking Algorthm </h4>
 				<div class="algo"><input type="radio" name="rk-algo" value="tf_idf" checked="checked">TF-IDF</div>
-				<div class="algo"><input type="radio" name="rk-algo" value="tf_idf_2">TF-IDF Enhanced</div>
+				<div class="algo"><input type="radio" name="rk-algo" value="tf_idf_norm">TF-IDF Enhanced</div>
 				<div class="algo"><input type="radio" name="rk-algo" value="bm25">BM25 </div>
 			</form>
-			<form action="" style="display:none"> 
-			Search the following types: <input name="res-type" value="all" id="res-type" type="text"> <input value="Set" name="set-res-type" id="set-res-type" type="button"><br>
+			<form action=""> 
+			{# Search the following types: <input name="res-type" value="all" id="res-type" type="text"> <input value="Set" name="set-res-type" id="set-res-type" type="button"><br> #}
 			Connect as AND: <input name="and-conn" value="" id="and-conn" type="text"> <br>
-			Phrase Query: <input name="ph-conn" value="" id="ph-conn" type="text"> <br>
+			{# Phrase Query: <input name="ph-conn" value="" id="ph-conn" type="text"> <br> #}
 			NOT the following: <input name="not-conn" value="" id="not-conn" type="text"> <input value="Set" name="set-conn" id="set-conn" type="button"><br>
   
   No. of results per page : <input name="num-res" id="num-res" type="text"> <input value="Set" name="set-num-res" id="set-num-res" type="button">
@@ -79,7 +79,8 @@
 			var encoded = encodeURIComponent(search_query);
 			var requ = 'q=' + encoded + '&&nr=' + num_res + '&&tid=' 
 				+ type_id + '&&p=' + nav_page + '&&cand=' + and_conn 
-				+ '&&cph=' + ph_conn + '&&cnot=' + not_conn
+				// + '&&cph=' + ph_conn
+				+ '&&cnot=' + not_conn
 				+ '&&algo=' + $('input[name="rk-algo"]:checked').val();
 			return requ;
 		}
