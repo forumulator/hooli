@@ -240,14 +240,22 @@ def rank_results(query, rank_name="tf_idf",
   # print(results_rank[:10])
   url_list = hbase_util.get_url(results_rank)
   title_list = hbase_util.get_title(results_rank)
-  for i, item in enumerate(url_list):
-    print(item)
-    print(title_list[i])
-    print()
+
+  result_list = []
+  title_set = set()
+  for i in range(len(results_rank)):
+    if title_list[i] not in title_set:
+      result_list.append((url_list[i], title_list[i]))
+      title_set.add(title_list[i])
+
+  # for i, item in enumerate(url_list):
+  #   print(item)
+  #   print(title_list[i])
+  #   print()
   logging.info("Ranked the results for the query: %s in %f sec" %(query,
     time.time()-t1))
   
-  return url_list
+  return result_list
 
 if __name__ == "__main__":
   rank_nm = input("Rank func: ")

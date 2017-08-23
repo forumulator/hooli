@@ -56,17 +56,17 @@ def view_results(a = None):
 
 	# if hit then set else query the engine
 	if flag == 0:
-		url_list = querying.rank_results(search_query, algo, and_q, not_q)
-		res_cache.append((send_query, algo, url_list))
+		result_list = querying.rank_results(search_query, algo, and_q, not_q)
+		res_cache.append((send_query, algo, result_list))
 	else:
-		url_list = cache_entry[2]
+		result_list = cache_entry[2]
 	# if (flag == 0):
 	# 	size, search_results, dym, time, file_res = gen_search.send(send_query)
 	# 	res_cache.append((send_query, size, search_results, dym, time, file_res))
 	# else:
 	# 	size, search_results, dym, time, file_res = cache_entry[1], cache_entry[2], cache_entry[3], cache_entry[4], cache_entry[5] 
 
-	size = len(url_list)
+	size = len(result_list)
 
 	# convert the results into pages
 	pg_size = request.args.get('nr','')
@@ -86,7 +86,7 @@ def view_results(a = None):
 
 	start = pg_size * (pg - 1) + 1
 	stop = start + pg_size
-	pg_res = [url_list[i] for i in range(start - 1, min(stop, size))]
+	pg_res = [result_list[i] for i in range(start - 1, min(stop, size))]
 
 	t_end = time.time()
 
@@ -94,7 +94,7 @@ def view_results(a = None):
 
 	# make a list of results and a dict object of metadata
 	# entries = [dict(res_title = resl[0], link = resl[1], rank = resl[2], desc = resl[3]) for resl in pg_res]
-	entries = [dict(res_title = resl, link = resl, rank = 0, desc = "") for resl in pg_res]
+	entries = [dict(res_title = resl[1], link = resl[0], rank = 0, desc = "") for resl in pg_res]
 	md = dict(num_res = size, pg_no = pg, next_pg = pg + 1, prev_pg = pg - 1, pgs = pgs, \
 			search_query = search_query, and_q = and_q, ph_q = ph_q, not_q = not_q, \
 			 start = start, stop = stop - 1, dym = None, \
