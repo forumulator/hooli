@@ -28,7 +28,7 @@ def view_results(a = None):
 
 	type_id = request.args.get('tid','all')
 
-	algo = request.args.get("algo", "tfidf")
+	algo = request.args.get("algo", "tf_idf")
 	#if (not type_id):
 	#	type_id = 'all'
 

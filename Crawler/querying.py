@@ -24,101 +24,6 @@ def sanitize_query(query):
   return query
 
 
-class Query:
-  def __init__(query, and_query, not_query):
-    self.or_words = query.split()
-    self.and_words = and_query.split()
-    self.not_words = not_query.split()
-    self.words = self.or_words + self.and_words \
-      + self.not_words
-
-    self.word_dicts = {}
-
-  def filter_docs(self):
-    """ Filter docs based on boolean operators
-    """
-    word_dicts = self.word_dicts
-    docs = set()
-
-    for word in self.or_words:
-      doc_set = word_dicts[word].keys()
-      docs = docs.union(doc_set)
-
-    for word in self.and_words:
-      doc_set = word_dicts[word].keys()
-      docs = docs.intersection(doc_set)
-
-    for word in self.not_words:
-      doc_set = word_dicts[word].keys()
-      docs = docs - doc_set
-
-    self.filtered_docs = docs
-
-  # To be added
-  def phrase_query(self, string):
-    """
-    Given query string - returns dict of docs containing the phrase
-    with the scores added up and pos of the first term.
-    Call this function instead of get_occuring_docs of hbase_util and
-    treat the entire string as one term
-    """
-    result = {}
-    pos_dict = {}
-    i = 0
-
-    string = sanitize_query(string)
-    for word in string.split():
-      if i == 0:
-        result = hbase_util.get_occuring_docs(word)
-        for doc in result.keys():
-          pos_dict[doc] = set(result[doc]["pos"])
-      else:
-        temp_dict = hbase_util.get_occuring_docs(word)
-        # check if doc exists in doc_dict of all other words
-        for doc in result.keys():
-          if doc not in temp_dict.keys():
-            del result[doc]
-          else:
-            # check if position of ith word is i next to first word
-            pos_dict[doc] = pos_dict[doc].intersection(
-              [posn-i for posn in temp_dict[doc]["pos"]])
-            if not pos_dict:
-              del result[doc]
-            else:
-              # document has passed checks till now and scores are updated
-              for score in result[doc]:
-                result[doc][score] += temp_dict[doc][score]
-      i += 1
-    return result
-
-  def rank(self, rank_name = "tfidf"):
-    """ Return a list of ranked documents
-    """
-    for word in self.words:
-      self.word_dicts[word] = get_occuring_docs(word)
-
-    self.filter_docs()
-
-    doc_list = list(self.filtered_docs)
-    present_words = self.and_words + self.or_words
-
-    score_list = []
-    for doc in doc_list:
-      doc_score = 0
-      for word in present_words:
-        if doc in self.word_dicts[word]:
-          # TODO: Correct this score
-          doc_score += self.word_dicts[word][doc]["tf1"]
-
-      score_list.append((doc_score, doc))
-
-    score_list = sorted(score_list)
-    ranked_docs = [pair[1] for pair in score_list]
-
-    return ranked_docs
-
-
-
 def compute_tf_idf(term, results, operator="or"):
   doc_list = hbase_util.get_occuring_docs(term)
   no_docs = len(doc_list)
@@ -208,14 +113,111 @@ class Bm25Ranker:
     return [doc for sc, doc in results]
 
 
-def rank_results(query, rank_name="tfidf",
+class Query:
+  rank_fn = ["tfidf", "bm25"]
+
+  def __init__(query, and_query, not_query):
+    self.or_words = query.split()
+    self.and_words = and_query.split()
+    self.not_words = not_query.split()
+    self.words = self.or_words + self.and_words \
+      + self.not_words
+
+    self.word_dicts = {}
+
+  def filter_docs(self):
+    """ Filter docs based on boolean operators
+    """
+    word_dicts = self.word_dicts
+    docs = set()
+
+    for word in self.or_words:
+      doc_set = word_dicts[word].keys()
+      docs = docs.union(doc_set)
+
+    for word in self.and_words:
+      doc_set = word_dicts[word].keys()
+      docs = docs.intersection(doc_set)
+
+    for word in self.not_words:
+      doc_set = word_dicts[word].keys()
+      docs = docs - doc_set
+
+    self.filtered_docs = docs
+
+  # To be added
+  def phrase_query(self, string):
+    """
+    Given query string - returns dict of docs containing the phrase
+    with the scores added up and pos of the first term.
+    Call this function instead of get_occuring_docs of hbase_util and
+    treat the entire string as one term
+    """
+    result = {}
+    pos_dict = {}
+    i = 0
+
+    string = sanitize_query(string)
+    for word in string.split():
+      if i == 0:
+        result = hbase_util.get_occuring_docs(word)
+        for doc in result.keys():
+          pos_dict[doc] = set(result[doc]["pos"])
+      else:
+        temp_dict = hbase_util.get_occuring_docs(word)
+        # check if doc exists in doc_dict of all other words
+        for doc in result.keys():
+          if doc not in temp_dict.keys():
+            del result[doc]
+          else:
+            # check if position of ith word is i next to first word
+            pos_dict[doc] = pos_dict[doc].intersection(
+              [posn-i for posn in temp_dict[doc]["pos"]])
+            if not pos_dict:
+              del result[doc]
+            else:
+              # document has passed checks till now and scores are updated
+              for score in result[doc]:
+                result[doc][score] += temp_dict[doc][score]
+      i += 1
+    return result
+
+  def rank(self, rank_name):
+    """ Return a list of ranked documents
+    """
+    for word in self.words:
+      self.word_dicts[word] = get_occuring_docs(word)
+
+    self.filter_docs()
+
+    doc_list = list(self.filtered_docs)
+    present_words = self.and_words + self.or_words
+
+    score_list = []
+    for doc in doc_list:
+      doc_score = 0
+      for word in present_words:
+        if doc in self.word_dicts[word]:
+          # TODO: Correct this score
+          doc_score += self.word_dicts[word][doc][rank_name]
+
+      score_list.append((doc_score, doc))
+
+    score_list = sorted(score_list)
+    ranked_docs = [pair[1] for pair in score_list]
+
+    return ranked_docs
+
+
+
+def rank_results(query, rank_name="tf_idf",
     and_query = "", not_query = ""):
   """ Return list of urls in ranked order
   """
   logger.initialize()
   t1 = time.time()
 
-  if not (rank_name in rank_fn):
+  if not (rank_name in Query.rank_fn):
     logging.error("Unknown rank algorithm: %s" %rank_name)
     return []
 
