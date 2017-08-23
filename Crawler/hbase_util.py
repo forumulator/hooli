@@ -14,7 +14,7 @@ from config import *
 
 thrift_port = 9001
 thrift_host = "172.16.114.80"
-depth = 2
+depth = 3
 
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
@@ -263,9 +263,20 @@ def get_url(doc_list):
     con = get_hbase_connection()
     table = con.table('web_doc')
     url = table.row(bytes(doc, "utf-8"))[b'details:url']
-    url_list.append(url)
+    url_list.append(url.decode("utf-8"))
   logging.info("Retrived url for given list in %f sec" %(time.time()-t1))
   return url_list
+
+def get_title(doc_list):
+  t1 = time.time()
+  title_list = []
+  for doc in doc_list:
+    con = get_hbase_connection()
+    table = con.table('web_doc')
+    title = table.row(bytes(doc, "utf-8"))[b'details:title']
+    title_list.append(title.decode("utf-8"))
+  logging.info("Retrived title for given list in %f sec" %(time.time()-t1))
+  return title_list
 
 def check_web_doc_content(content_hash):
   """
@@ -320,6 +331,11 @@ def update_inv_index_score(term, value):
   except Exception as e:
     logging.error("While updating the inverted index for term: %s"
       "\ncaught the following error: %s" %(term, e))
+
+def get_corpus_term_sz():
+  con = get_hbase_connection()
+  table = con.table('index_stats')
+  return table.counter_get(b'index', b'stats:total_length')
 
 if __name__ == "__main__":
   logger.initialize()

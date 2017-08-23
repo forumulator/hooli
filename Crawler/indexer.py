@@ -107,4 +107,4 @@ if __name__ == "__main__":
   pages = indxr.build_index()
   print("Indexer done after indexing %d pages" % pages)
   # No need to use index manager for this one
-  indxr.calc_weights()
+  # indxr.calc_weights()
