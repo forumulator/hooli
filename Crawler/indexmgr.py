@@ -1,7 +1,7 @@
 import Pyro4
 import threading
-import happybase
-import hbase_util as HBase
+# import happybase
+# import hbase_util as HBase
 import logging
 import sys
 import time
@@ -106,13 +106,23 @@ class IndexManager:
 		
 		return ret
 
+	def retrieve_spider_q(self, host_name):
+		self.lock.acquire()
+		url_str = hbase_util.retrieve_spider_queue(host_name)
+		self.lock.release()
+		return url_str
+		
+
 
 def main():
-	Pyro4.Daemon.serveSimple(
-        {
-            IndexManager: "indexMgr"
-        },
-        ns = False)
+	import socket
+	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	s.connect(('172.16.114.80', 1))  # connect() for UDP doesn't send packets
+	host_ip = s.getsockname()[0]
+	daemon = Pyro4.Daemon(host=host_ip)
+	uri = daemon.register(IndexManager)
+	hbase_util.publish_manager_uri(uri)
+	daemon.requestLoop()
 
 if __name__ == "__main__":
 	main()

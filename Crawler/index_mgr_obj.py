@@ -1,9 +1,12 @@
 import Pyro4
+
+import hbase_util
+
 from config import *
 
 def connect_to_index_mgr(uri = None):
   if uri is None:
-    uri = input("Enter the uri of the index manager: ").strip()
+    uri = hbase_util.get_manager_uri()
   index_mgr = Pyro4.Proxy(uri)
   if index_mgr is None:
     logging.error("Couldn't connect to IndexManager with URI: %s" %uri)

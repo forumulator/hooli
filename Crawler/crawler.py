@@ -1,3 +1,5 @@
+import logging
+
 from urllib import error
 from urllib import request
 
@@ -33,7 +35,7 @@ class Crawler:
         urlResponse = self.__openURL(proxyDict)
 
         if urlResponse is not None:
-            import hashlib
+            # import hashlib
             
             responseCharset = urlResponse.headers.get_content_charset()
             if(responseCharset is not None):
@@ -71,13 +73,13 @@ class Crawler:
             urlResponse = request.urlopen(self.__urlBeingCrawled)
 
         except error.URLError as e:
-            print("Error for url " + self.__urlBeingCrawled)
+            err_string = ("Error for url " + self.__urlBeingCrawled)
             if hasattr(e, "reason"):
-                print(e.reason)
+                err_string += "%s" %(e.reason)
             if hasattr(e, "code"):
-                print("The server couldn't fulfill the request")
-                print("Error code: ", e.code)
-
+                err_string += ("The server couldn't fulfill the request")
+                err_string += ("Error code: %s" % e.code)
+            logging.error(err_string)
         return urlResponse
 
     def __decodeResponse(self, responseObject, charset='utf-8'):

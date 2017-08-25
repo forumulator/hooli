@@ -19,6 +19,26 @@ depth = 3
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
 
+def publish_manager_uri(uri):
+  """
+  Publishes the give index manager uri to the Hbase table
+  index_stats
+  """
+  con = get_hbase_connection()
+  table = con.table("index_stats")
+  table.put(b'index',
+    {
+      b'stats:uri': bytes(uri, "utf-8")
+    })
+
+def get_manager_uri():
+  """
+  Returns the index manager URI
+  """
+  con = get_hbase_connection()
+  table = con.table("index_stats")
+  row = table.row(b'index')
+  return row[b'stats:uri'].decode("utf-8")
 
 def update_crawl_count(count):
   '''
@@ -33,6 +53,35 @@ def update_crawl_count(count):
       time.time() - t1))
 
   return int(new_count)
+
+def store_spider_queue(url_str):
+  import socket
+  host_name = socket.gethostname()
+  con = get_hbase_connection()
+  table = con.table("crawl_statistics")
+  table.put(bytes(host_name, "utf-8"),
+    {
+      b'stats:url_queue': bytes(url_str, "utf-8")
+    })
+  logging.info(host_name+" successfully stored the crawling queue in Hbase")
+
+def retrieve_spider_queue(host_name):
+  con = get_hbase_connection()
+  table = con.table("crawl_statistics")
+  row = table.row(bytes(host_name, "utf-8"))
+  old_host = host_name
+  if not row:
+    # Do I need to put a limit
+    for key, r in table.scan():
+      if key not b'crawl':
+        row = r
+        old_host = key.decode("utf-8")
+        break
+  if not row:
+    return None
+  table.delete(bytes(old_host, "utf-8"))
+  logging.info("%s was given the queue of %s" %(host_name, old_host))
+  return row["stats:url_queue"].decode("utf-8")
 
 
 def post_web_doc(url_hash, url, html_string, html_title):
@@ -49,7 +98,7 @@ def post_web_doc(url_hash, url, html_string, html_title):
       b'details:title': bytes(html_title, "utf-8"),
     })
   # Stores the content of the web doc
-  content_hash = hashlib.sha256(bytes(html_string, "utf-8")).hexdigest()
+  content_hash = hashlib.sha256(bytes(html_title, "utf-8")).hexdigest()
   table = con.table('web_doc_content')
   table.put(bytes(content_hash, "utf-8"),
     {
