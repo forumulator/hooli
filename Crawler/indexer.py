@@ -20,14 +20,17 @@ class Indexer:
     self.indexed_page_count = 0
     logger.initialize()
 
-  def index_one_file(self, termlist):
-    fileIndex = {}
-    for index, word in enumerate(termlist):
-      if word in fileIndex.keys():
-        fileIndex[word] += "%s " %index
-      else:
-        fileIndex[word] = "%s " %index
-    return fileIndex
+    def index_one_file(termlist):
+      fileIndex = {}
+      tf = {}
+      for index, word in enumerate(termlist):
+        if word in fileIndex.keys():
+          tf[word] += 1
+          fileIndex[word] += "%s " %index
+        else:
+          tf[word] = 1
+          fileIndex[word] = "%s " %index
+      return (fileIndex, max(tf.values()))
 
 
   def build_index(self):
@@ -49,9 +52,8 @@ class Indexer:
       t1 = time.time()
       for doc in doc_content_dict.keys():  
         doc_content_dict[doc] = doc_content_dict[doc].lower().split()
-        doc_content_dict[doc] = self.index_one_file(doc_content_dict[doc])
-        hbase_util.update_inv_index(doc, doc_content_dict[doc])
-        index_mgr.update_avg_doc_len(len(doc_content_dict[doc]))
+        doc_content_dict[doc], max_tf = self.index_one_file(doc_content_dict[doc])
+        hbase_util.update_inv_index(doc, doc_content_dict[doc], max_tf)
 
       logging.info("Completed indexing %s docs in %f sec" %(Indexer.num_docs_to_index,
           time.time() - t1))
