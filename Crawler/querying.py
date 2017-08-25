@@ -118,15 +118,24 @@ class Query:
     """ Filter docs based on boolean operators
     """
     word_dicts = self.word_dicts
-    docs = set()
+    docs = set() 
 
-    for word in self.or_words:
-      doc_set = word_dicts[word].keys()
-      docs = docs.union(doc_set)
+    first_flag = False
 
     for word in self.and_words:
-      doc_set = word_dicts[word].keys()
-      docs = docs.intersection(doc_set)
+      if not first_flag:
+        docs = set(word_dicts[word].keys())
+        first_flag = True
+      else:
+        doc_set = set(word_dicts[word].keys())
+        docs = docs.intersection(doc_set)
+
+    for word in self.or_words:
+      if not first_flag:
+        doc_set = word_dicts[word].keys()
+        docs = docs.union(doc_set)
+      else:
+        pass
 
     for word in self.not_words:
       doc_set = word_dicts[word].keys()
@@ -248,10 +257,10 @@ def rank_results(query, rank_name="tf_idf",
       result_list.append((url_list[i], title_list[i]))
       title_set.add(title_list[i])
 
-  # for i, item in enumerate(url_list):
-  #   print(item)
-  #   print(title_list[i])
-  #   print()
+  for i, item in enumerate(url_list):
+    print(item)
+    print(title_list[i])
+    print()
   logging.info("Ranked the results for the query: %s in %f sec" %(query,
     time.time()-t1))
   
