@@ -15,6 +15,10 @@ class Crawler:
 
     def __init__(self):
         self.__urlBeingCrawled = None
+        self.__mime_type = 
+        {
+            "text"  : ["html"]
+        }
 
     def assignUrl(self, urlToCrawl):
         # checks for URL can be done here
@@ -35,8 +39,18 @@ class Crawler:
         urlResponse = self.__openURL(proxyDict)
 
         if urlResponse is not None:
-            # import hashlib
-            
+            # Check mime type
+            info = urlResponse.info()
+            main_mime = info.get_content_maintype() 
+            if (main_mime not in self.__mime_type.keys() or
+                info.get_content_subtype() not in self.__mime_type[main_mime]):
+                return None,None
+            else:
+                # CHeck language
+                lang = info.get_all("Content-language")
+                if lang is not None and lang[0] != "en":
+                    return None, None
+
             responseCharset = urlResponse.headers.get_content_charset()
             if(responseCharset is not None):
                 htmlString = self.__decodeResponse(urlResponse, responseCharset)
