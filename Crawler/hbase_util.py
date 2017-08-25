@@ -123,6 +123,7 @@ def update_inv_index(url_hash, doc_index, max_tf):
   # TODO - try changing to with
   col_name = "docs:%s" %url_hash
   for term in doc_index:
+    doc_index[term] += "\n%s\n%s" %(term_count, max_tf)
     bat.put(bytes(term, "utf-8"),
       {
       bytes(col_name, "utf-8") : bytes(doc_index[term], "utf-8")
@@ -213,7 +214,7 @@ def get_occuring_docs(term):
     # change from docs:doc_id to doc_id
     doc_str = doc_with_cf.decode("utf-8")[5:]
     docs_dict[doc_str] = {}
-    key_list = ["pos", "tf_idf", "tf_idf_norm", "bm25"]
+    key_list = ["pos", "doc_len", "max_tf"]
     row[doc_with_cf] = row[doc_with_cf].decode("utf-8").split('\n')
     for i, item in enumerate(row[doc_with_cf]):
       if i > 0:
