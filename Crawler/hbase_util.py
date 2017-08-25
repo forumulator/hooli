@@ -16,6 +16,9 @@ thrift_port = 9001
 thrift_host = "172.16.114.80"
 depth = 3
 
+def utf(string):
+  return bytes(string, "utf-8")
+
 def get_hbase_connection():
   return happybase.Connection(host=thrift_host ,port=thrift_port)
 
@@ -186,6 +189,56 @@ def update_inv_index(url_hash, doc_index, max_tf):
 
   logging.debug("Updated inv_index for doc: %s in %f time" %(url_hash,
     (time.time() - t1)))
+
+
+def update_inv_index_batch(inv_index, metadata):
+  t1 = time.time()
+  term_count = len(doc_index)
+  con = get_hbase_connection()
+
+  table = con.table('web_doc')
+  try:
+    with table.batch(transaction=True) as batch:
+      for doc, md in metadata:
+        # |D| is needed for bm25 calculation
+        batch.put(bytes(doc, "utf-8"),
+          {
+            b'details:term_count' : bytes(str(md[0]), "utf-8"),
+            b'details:max_tf'     : bytes(str(md[1]), "utf-8"),
+          })
+
+  except Exception as e:
+    logging.error("Batch write metadata for docs : %s failed" % ', '.join(list(metadata.keys())))
+
+
+  # storing total term count to calculate average doc_length
+  table = con.table("index_stats")
+  table.counter_inc(b'index', b'stats:total_length', value=term_count)
+
+  # Write the inverted index
+  con = get_hbase_connection()
+  table = con.table('inv_index')
+  try:
+    with table.batch(transaction=True) as bat:
+      # TODO - try changing to with
+      for term in inv_index:
+        for doc in inv_index[term]:
+          mdoc = metadata[doc]
+          inv_index[term][doc] += "\n%s\n%s" %(mdoc[0], mdoc[1])
+
+        term_dict = {}
+        for doc in inv_index[term]:
+          term_dict[utf(doc)] = utf(inv_index[term][doc])
+
+        bat.put(bytes(term, "utf-8"), term_dict)
+      
+  except Exception as e:
+    logging.error("Batch write inverted_index for docs : %s failed" 
+        % ', '.join(list(metadata.keys())))
+
+  logging.debug("Updated inv_index for doc: %s in %f time" %(url_hash,
+    (time.time() - t1)))
+
 
 def retrieve_docs_content(start_id, num_docs):
   """

@@ -83,9 +83,12 @@ class Indexer:
     # count of total pages indexed
     self.indexed_page_count = 0
     self.pre_processor = PreProcessor()
+
+    self.inv_index = {}
     logger.initialize()
 
-  def index_one_file(termlist):
+
+  def index_one_file(self, doc, termlist):
     fileIndex = {}
     tf = {}
     for index, word in enumerate(termlist):
@@ -95,7 +98,35 @@ class Indexer:
       else:
         tf[word] = 1
         fileIndex[word] = "%s " %index
-    return (fileIndex, max(tf.values()))
+
+    for word in fileIndex:
+      if not word in self.inv_index:
+        self.inv_index[word] = {}
+      # Add this docs index
+      self.inv_index[word][doc] = fileIndex[word]
+
+    return max(tf.values())
+
+
+  def index_batch(self, doc_content_dict):
+    """ Index batch of documents whose content is given in
+    doc_content_dict
+    """
+    added_length = 0
+    self.inv_index, md = {}, {}
+    # index all docs
+    for doc in doc_content_dict.keys():  
+      doc_content_dict[doc] = doc_content_dict[doc].lower().split()
+      self.pre_processor.process(doc_content_dict[doc])
+
+      doc_len = len(doc_content_dict[doc])
+      added_length += doc_len
+      # Create inverted index for file
+      md[doc] = (doc_len, self.index_one_file(doc, doc_content_dict[doc]))
+
+    hbase_util.update_inv_index_batch(self.inv_index, md)
+    index_mgr.update_tot_doc_len(len(added_length))
+
 
   def build_index(self):
     index_mgr = self.index_mgr
@@ -104,6 +135,7 @@ class Indexer:
     while(True):
       num_docs, start_id = index_mgr.retrieve_docs_ids(Indexer.num_docs_to_index)
       self.indexed_page_count += num_docs
+
       if num_docs == 0:
         if index_mgr.is_crawling_done():
           break
@@ -115,15 +147,7 @@ class Indexer:
       doc_content_dict = hbase_util.retrieve_docs_content(start_id, num_docs)
 
       t1 = time.time()
-      for doc in doc_content_dict.keys():  
-        doc_content_dict[doc] = doc_content_dict[doc].lower().split()
-        self.pre_processor.process(doc_content_dict[doc])
-
-        # Create inverted index for file
-        doc_content_dict[doc], max_tf = self.index_one_file(doc_content_dict[doc])
-        hbase_util.update_inv_index(doc, doc_content_dict[doc], max_tf)
-        index_mgr.update_tot_doc_len(len(doc_content_dict[doc]))
-
+      self.index_batch(doc_content_dict)
       logging.info("Completed indexing %s docs in %f sec" %(Indexer.num_docs_to_index,
           time.time() - t1))
 
