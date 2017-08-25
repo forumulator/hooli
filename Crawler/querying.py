@@ -7,6 +7,8 @@ import time
 import hbase_util
 import logger
 
+from indexer import PreProcessor
+
 # from index_mgr_obj import index_mgr
 
 RESULT_LIMIT = 10
@@ -14,13 +16,19 @@ RESULT_LIMIT = 10
 # Get actual value from Hbase
 # corpus_sz = hbase_util.get_indexed_corpus_size()
 
+pre_processor = PreProcessor()
 
 def sanitize_query(query):
   """ Replace spacial charachters with spaces
   """
   pattern = re.compile('[\W_]+')
   query = pattern.sub(' ',query).lower()
-  # TODO: Remove stop words and convert stemming
+
+  word_list = query.split()
+  # Remove stop words and convert stemming
+  pre_processor.process_small_list(word_list)
+  query = ' '.join(word_list)
+
   return query
 
 

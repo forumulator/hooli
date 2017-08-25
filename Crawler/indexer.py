@@ -9,6 +9,70 @@ from index_mgr_obj import index_mgr
 
 import logger
 
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
+
+from functools import lru_cache
+
+
+class PreProcessor:
+""" Word list preprocessor, both for indexing and querying.
+Currently removes stop words and lemmatizes all words
+"""
+
+  def __init__(self):
+    self.wnl = WordNetLemmatizer()
+    self.stopwords = set(stopwords.words('english'))
+
+  # 50 kb lemmatizer cache
+  @lru_cache(maxsize = 50000)
+  def lemmatize(self, word):
+    return self.wnl.lemmatize(word)
+
+  def remove_stop_words(self):
+    pos_dict = self.pos_dict
+    all_words = set(pos_dict.keys())
+    rel_words = all_words - self.stopwords
+
+    removed = all_words - rel_words
+    for rem_word in removed:
+      pos_dict[word][1] = ''
+
+  def process(self, word_list):
+    """ Preprocess word_list inplace currently
+    """
+    pos_dict = {}
+    for pos, word in enumerate(word_list):
+      if not word in pos_dict:
+        pos_dict[word] = [[], word]
+      pos_dict[word][0].append(pos)
+
+    self.pos_dict = pos_dict
+    self.remove_stop_words()
+
+    for word in pos_dict:
+      if pos_dict[word][1] == '':
+        continue
+      pos_dict[word][1] = self.lemmatize(word)
+
+    # proc_list = [None] * len(word_list)
+    for word in pos_dict:
+      proc_word = pos_dict[word][1]
+      for pos in pos_dict[word][0]:
+        word_list[pos] = proc_word
+
+    return True
+
+  def process_small_list(self, word_list):
+    """ Inplace processing of small word list
+    """
+    for pos, word in enumerate(word_list):
+      if word in self.stopwords:
+        word_list[pos] = ''
+      else:
+        word_list[pos] = self.lemmatize(word)
+ 
+
 
 class Indexer:
   num_docs_to_index = 30
@@ -18,24 +82,25 @@ class Indexer:
     self.hbase_util = hbase_util
     # count of total pages indexed
     self.indexed_page_count = 0
+    self.pre_processor = PreProcessor()
     logger.initialize()
 
-    def index_one_file(termlist):
-      fileIndex = {}
-      tf = {}
-      for index, word in enumerate(termlist):
-        if word in fileIndex.keys():
-          tf[word] += 1
-          fileIndex[word] += "%s " %index
-        else:
-          tf[word] = 1
-          fileIndex[word] = "%s " %index
-      return (fileIndex, max(tf.values()))
-
+  def index_one_file(termlist):
+    fileIndex = {}
+    tf = {}
+    for index, word in enumerate(termlist):
+      if word in fileIndex.keys():
+        tf[word] += 1
+        fileIndex[word] += "%s " %index
+      else:
+        tf[word] = 1
+        fileIndex[word] = "%s " %index
+    return (fileIndex, max(tf.values()))
 
   def build_index(self):
     index_mgr = self.index_mgr
     hbase_util = self.hbase_util
+
     while(True):
       num_docs, start_id = index_mgr.retrieve_docs_ids(Indexer.num_docs_to_index)
       self.indexed_page_count += num_docs
@@ -52,8 +117,12 @@ class Indexer:
       t1 = time.time()
       for doc in doc_content_dict.keys():  
         doc_content_dict[doc] = doc_content_dict[doc].lower().split()
+        self.pre_processor.process(doc_content_dict[doc])
+
+        # Create inverted index for file
         doc_content_dict[doc], max_tf = self.index_one_file(doc_content_dict[doc])
         hbase_util.update_inv_index(doc, doc_content_dict[doc], max_tf)
+        index_mgr.update_tot_doc_len(len(doc_content_dict[doc]))
 
       logging.info("Completed indexing %s docs in %f sec" %(Indexer.num_docs_to_index,
           time.time() - t1))
