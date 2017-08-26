@@ -321,13 +321,15 @@ def get_occuring_docs(term):
     for i, item in enumerate(row[doc_with_cf]):
       if i > 0:
         # for scores
-        item = float(item)
+        item = int(item)
       else:
         # convert positions from string to list of <int>
         item = list(map(int, item.split()))
       docs_dict[doc_str][key_list[i]] = item
+
   logging.info("Retrived %s docs for term: %s in %f secs" %(len(docs_dict),
     term, time.time()-t1))
+  
   return docs_dict
 
 

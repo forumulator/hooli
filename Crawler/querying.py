@@ -93,15 +93,17 @@ def bm25(doc_dict, idf, doc_len):
     tf + Bm25Ranker.bm_k*(1- Bm25Ranker.bm_b + 
       Bm25Ranker.bm_b*doc_len/Query.avg_doc_len))
 
-def tf_idf_basic(doc_dict, idf, temp):
+def tf_idf_basic(doc_dict, idf, dummy):
   # print("here")
   tf = len(doc_dict["pos"])
   # print(idf)
   doc_dict["tf_idf"] = tf*idf
 
+
 def tf_idf_norm(doc_dict, idf, doc_max_tf):
   tf = len(doc_dict["pos"])
   doc_dict["tf_idf_norm"] = 0.5 + 0.5*(tf/ doc_max_tf)
+
 
 class Query:
   rank_fn = {
@@ -109,6 +111,7 @@ class Query:
              "bm25"         : bm25,
              "tf_idf_norm"  : tf_idf_norm,
              }
+
   corpus_sz = hbase_util.get_indexed_corpus_size()
 
   avg_doc_len = hbase_util.get_corpus_term_sz()//corpus_sz
@@ -190,53 +193,68 @@ class Query:
 
   def rank(self, rank_name):
     """ Return a list of ranked documents
-
     """
     t1 = time.time()
-    idf = {}
-    for word in self.words:
-      self.word_dicts[word] = hbase_util.get_occuring_docs(word)
-      idf[word] = len(self.word_dicts[word])
-    self.filter_docs()
-    # self.filtered_docs = set()
-    # for word in self.word_dicts:
-    #   for doc in self.word_dicts[word]:
-    #     self.filtered_docs.add(doc)
 
-    doc_list = list(self.filtered_docs)
+    idf = {}
+    doc_md = {}
+    for word in self.words:
+      word_docs = hbase_util.get_occuring_docs(word)
+      pos_dict = {}
+
+      for doc in word_docs:
+        pos_dict[doc]["pos"] = word_docs[0]
+        doc_len, max_tf = word_docs[1], word_docs[2]
+        if not doc in doc_md:
+          doc_md[doc] = (doc_len, max_tf)
+
+      self.word_dicts[word] = pos_dict 
+      # no of docs this word occurs in
+      idf[word] = len(word_docs)
+
+    # Remove docs based on boolean operators
+    self.filter_docs()
+
+    filtered_doc_list = list(self.filtered_docs)
     present_words = self.and_words + self.or_words
 
     score_list = []
-    # print(time.time() - t1)
-    for doc in doc_list:
+
+    for doc in filtered_doc_list:
       doc_score = 0
-      rank_specific = {}
-      if rank_name == "tf_idf_norm":
-        rank_specific[rank_name] = doc_len = hbase_util.get_doc_length(doc)
-      elif rank_name == "bm25":
-        rank_specific[rank_name] = hbase_util.get_max_tf(doc)
+
+      # Rank_algo specific params
+      if rank_name == "bm25":
+        # doc_length for BM-25
+        rank_specific = doc_len = doc_md[doc][0]
+      elif rank_name == "tf_idf_norm":
+        # max_tf for td_idf_normalized
+        rank_specific = doc_md[doc][1]
       else:
-        rank_specific[rank_name] = None
+        rank_specific = None
+      
       for word in present_words:
         if idf[word] == 0:
           continue
-        idf[word] = math.log(Query.corpus_sz/idf[word])
+        else:
+          idf[word] = math.log(Query.corpus_sz / idf[word])
         if doc in self.word_dicts[word]:
-          # TODO: Correct this score
+          # Score based on ranking function
           Query.rank_fn[rank_name](self.word_dicts[word][doc], idf[word],
-           rank_specific[rank_name])
+              rank_specific)
           doc_score += self.word_dicts[word][doc][rank_name]
 
       score_list.append((doc_score, doc))
-    # print(time.time()-t1)
+
     score_list = sorted(score_list, reverse=True)
     ranked_docs = [pair[1] for pair in score_list]
 
+    logging.info("Ranked %d docs in time: %s" %(len(ranked_docs), time.time() - t1))
     return ranked_docs
 
 
 
-def rank_results(query, rank_name="tf_idf",
+def rank_results(query, rank_name = "tf_idf",
     and_query = "", not_query = ""):
   """ Return list of urls in ranked order
   """
@@ -269,6 +287,7 @@ def rank_results(query, rank_name="tf_idf",
     print(item)
     print(title_list[i])
     print()
+
   logging.info("Ranked the results for the query: %s in %f sec" %(query,
     time.time()-t1))
   
